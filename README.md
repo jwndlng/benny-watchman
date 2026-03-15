@@ -1,6 +1,4 @@
-# benny-watchman
-
-> Benny, never sleeps, Watchman.
+# Benny, never sleeps, Watchman.
 
 Benny is an autonomous AI security analyst. He receives alerts via REST API, investigates them using an agentic reasoning loop with Clickhouse log data via MCP, and returns structured triage reports — fully unattended, 24/7.
 
