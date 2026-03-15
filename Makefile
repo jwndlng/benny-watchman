@@ -10,7 +10,7 @@ test-unit:
 	uv run pytest tests/unit/ -v
 
 test-integration:
-	uv run pytest tests/integration/ -v
+	uv run pytest tests/api/ tests/integration/ -v
 
 run:
 	uv run python main.py

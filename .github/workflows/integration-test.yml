@@ -15,4 +15,4 @@ jobs:
           enable-cache: true
       - run: uv sync --group dev
       # TODO: start external services (Clickhouse, etc.) here when needed
-      - run: uv run pytest tests/integration/ -v
+      - run: uv run pytest tests/api/ tests/integration/ -v
