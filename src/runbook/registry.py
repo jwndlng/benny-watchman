@@ -8,7 +8,6 @@ FRONTMATTER_DELIMITER = "---"
 
 
 class RunbookRegistry:
-
     def __init__(self) -> None:
         self._runbooks: dict[str, Runbook] = {}
 

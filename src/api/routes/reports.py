@@ -8,7 +8,9 @@ bp = Blueprint("reports", __name__)
 @bp.get("/reports")
 def list_reports():
     investigations = current_app.persistence.list()
-    reports = [i.report.model_dump(mode="json") for i in investigations if i.report is not None]
+    reports = [
+        i.report.model_dump(mode="json") for i in investigations if i.report is not None
+    ]
     return jsonify(reports), 200
 
 

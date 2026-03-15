@@ -9,8 +9,9 @@ from src.schemas.investigation import Investigation
 
 
 class Orchestrator:
-
-    def __init__(self, registry: RunbookRegistry, persistence: PersistenceBackend) -> None:
+    def __init__(
+        self, registry: RunbookRegistry, persistence: PersistenceBackend
+    ) -> None:
         self._router = Router(registry)
         self._analyst = AnalystAgent()
         self._persistence = persistence

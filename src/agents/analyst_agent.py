@@ -14,7 +14,6 @@ from src.schemas.investigation import Investigation, InvestigationStatus
 
 
 class AnalystAgent:
-
     def investigate(self, alert: Alert, runbook: Runbook) -> Investigation:
         # Stub — LLM investigation loop not yet implemented
         report = IncidentReport(

@@ -8,7 +8,9 @@ bp = Blueprint("runbooks", __name__)
 @bp.get("/runbooks")
 def list_runbooks():
     runbooks = current_app.registry.list()
-    return jsonify([{"name": r.name, "description": r.description} for r in runbooks]), 200
+    return jsonify(
+        [{"name": r.name, "description": r.description} for r in runbooks]
+    ), 200
 
 
 @bp.get("/runbooks/<runbook_name>")

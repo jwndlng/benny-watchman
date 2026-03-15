@@ -5,7 +5,6 @@ from src.schemas.investigation import Investigation
 
 
 class PersistenceBackend(ABC):
-
     @abstractmethod
     def save(self, investigation: Investigation) -> None:
         pass

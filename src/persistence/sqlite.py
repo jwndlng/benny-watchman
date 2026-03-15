@@ -6,7 +6,6 @@ from src.schemas.investigation import Investigation
 
 
 class SQLitePersistence(PersistenceBackend):
-
     def __init__(self, db_path: str = "investigations.db") -> None:
         self._db_path = db_path
         self._init_db()

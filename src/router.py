@@ -6,7 +6,6 @@ from src.schemas.alert import Alert
 
 
 class Router:
-
     def __init__(self, registry: RunbookRegistry) -> None:
         self._registry = registry
 

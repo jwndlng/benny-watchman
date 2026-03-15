@@ -18,6 +18,8 @@ def investigate():
     alert = Alert(**body.model_dump())
     investigation = current_app.orchestrator.investigate(alert)
     if investigation is None:
-        return jsonify({"error": "No matching runbook found. Manual review required."}), 422
+        return jsonify(
+            {"error": "No matching runbook found. Manual review required."}
+        ), 422
 
     return jsonify(investigation.model_dump(mode="json")), 202
