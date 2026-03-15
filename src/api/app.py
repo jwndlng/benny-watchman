@@ -6,10 +6,23 @@ from src.api.routes.investigations import bp as investigations_bp
 from src.api.routes.reports import bp as reports_bp
 from src.api.routes.runbooks import bp as runbooks_bp
 from src.api.routes.hunt import bp as hunt_bp
+from src.config import config
+from src.orchestrator import Orchestrator
+from src.persistence.factory import create_persistence
+from src.runbook.registry import RunbookRegistry
 
 
-def create_app() -> Flask:
+def create_app(cfg=config) -> Flask:
     app = Flask(__name__)
+
+    registry = RunbookRegistry()
+    registry.load(cfg.runbooks.path)
+
+    persistence = create_persistence(cfg.persistence.engine, db_path=cfg.persistence.db_path)
+    app.orchestrator = Orchestrator(registry, persistence)
+    app.persistence = persistence
+    app.registry = registry
+
     app.register_blueprint(investigate_bp)
     app.register_blueprint(investigations_bp)
     app.register_blueprint(reports_bp)

@@ -1,19 +1,19 @@
 """Abstract persistence backend interface."""
 
 from abc import ABC, abstractmethod
-from src.schemas.incident_report import IncidentReport
+from src.schemas.investigation import Investigation
 
 
 class PersistenceBackend(ABC):
 
     @abstractmethod
-    def save(self, report: IncidentReport) -> None:
+    def save(self, investigation: Investigation) -> None:
         pass
 
     @abstractmethod
-    def get(self, alert_id: str) -> IncidentReport | None:
+    def get(self, investigation_id: str) -> Investigation | None:
         pass
 
     @abstractmethod
-    def list(self) -> list[IncidentReport]:
+    def list(self) -> list[Investigation]:
         pass
