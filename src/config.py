@@ -12,9 +12,14 @@ class _RunbooksConfig:
     path = os.environ.get("RUNBOOKS_PATH", "runbooks")
 
 
+class _AgentConfig:
+    model = os.environ.get("AGENT_MODEL", "anthropic:claude-sonnet-4-6")
+
+
 class Config:
     persistence = _PersistenceConfig()
     runbooks = _RunbooksConfig()
+    agent = _AgentConfig()
 
 
 config = Config()

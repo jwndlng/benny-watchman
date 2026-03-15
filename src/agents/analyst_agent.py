@@ -7,26 +7,38 @@ Iterates until confident in a conclusion or the tool call limit is reached.
 
 import uuid
 from datetime import datetime, timezone
+
+from pydantic import BaseModel, Field
+
+from src.agents.base import BaseAgent
 from src.runbook.model import Runbook
 from src.schemas.alert import Alert
-from src.schemas.incident_report import IncidentReport, Severity, Verdict
+from src.schemas.incident_report import IncidentReport
 from src.schemas.investigation import Investigation, InvestigationStatus
 
 
-class AnalystAgent:
-    def investigate(self, alert: Alert, runbook: Runbook) -> Investigation:
-        # Stub — LLM investigation loop not yet implemented
-        report = IncidentReport(
-            alert_id=alert.id,
-            severity=Severity.MEDIUM,
-            verdict=Verdict.INCONCLUSIVE,
-            confidence=0.0,
-            summary="Stub investigation — agent not yet implemented.",
-            findings=[],
-            recommended_actions=[],
-            detection_rule_improvements=[],
-            runbook=runbook.name,
+class AnalystModel(BaseModel):
+    alert: Alert = Field(description="The alert being investigated")
+    runbook: Runbook = Field(description="The runbook guiding this investigation")
+
+
+class AnalystAgent(BaseAgent[AnalystModel, IncidentReport]):
+
+    def __init__(self, model: str, runbook: Runbook) -> None:
+        super().__init__(
+            model=model,
+            output_type=IncidentReport,
+            instructions=runbook.instructions,
         )
+        self._runbook = runbook
+
+    def investigate(self, alert: Alert) -> Investigation:
+        deps = AnalystModel(alert=alert, runbook=self._runbook)
+        result = self.agent.run_sync(
+            f"Investigate the following alert:\n{alert.model_dump_json()}",
+            deps=deps,
+        )
+        report = result.output
         now = datetime.now(timezone.utc)
         return Investigation(
             id=str(uuid.uuid4()),
@@ -34,7 +46,7 @@ class AnalystAgent:
             status=InvestigationStatus.COMPLETE,
             severity=report.severity,
             verdict=report.verdict,
-            runbook=runbook.name,
+            runbook=self._runbook.name,
             created_at=now,
             completed_at=now,
             report=report,

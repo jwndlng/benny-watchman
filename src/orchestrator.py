@@ -10,16 +10,16 @@ from src.schemas.investigation import Investigation
 
 class Orchestrator:
     def __init__(
-        self, registry: RunbookRegistry, persistence: PersistenceBackend
+        self, registry: RunbookRegistry, persistence: PersistenceBackend, model: str
     ) -> None:
         self._router = Router(registry)
-        self._analyst = AnalystAgent()
         self._persistence = persistence
+        self._model = model
 
     def investigate(self, alert: Alert) -> Investigation | None:
         runbook = self._router.route(alert)
         if runbook is None:
             return None
-        investigation = self._analyst.investigate(alert, runbook)
+        investigation = AnalystAgent(model=self._model, runbook=runbook).investigate(alert)
         self._persistence.save(investigation)
         return investigation

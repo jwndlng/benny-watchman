@@ -21,7 +21,7 @@ def create_app(cfg=config) -> Flask:
     persistence = create_persistence(
         cfg.persistence.engine, db_path=cfg.persistence.db_path
     )
-    app.orchestrator = Orchestrator(registry, persistence)
+    app.orchestrator = Orchestrator(registry, persistence, model=cfg.agent.model)
     app.persistence = persistence
     app.registry = registry
 
