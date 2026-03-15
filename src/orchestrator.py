@@ -20,6 +20,8 @@ class Orchestrator:
         runbook = self._router.route(alert)
         if runbook is None:
             return None
-        investigation = AnalystAgent(model=self._model, runbook=runbook).investigate(alert)
+        investigation = AnalystAgent(model=self._model, runbook=runbook).investigate(
+            alert
+        )
         self._persistence.save(investigation)
         return investigation

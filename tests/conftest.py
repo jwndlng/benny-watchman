@@ -56,7 +56,7 @@ def client(tmp_path):
     app.config["TESTING"] = True
     with app.test_client() as client:
         with patch("src.orchestrator.AnalystAgent") as mock_cls:
-            mock_cls.return_value.investigate.side_effect = (
-                lambda alert: _stub_investigation(alert.id, "generic")
+            mock_cls.return_value.investigate.side_effect = lambda alert: (
+                _stub_investigation(alert.id, "generic")
             )
             yield client

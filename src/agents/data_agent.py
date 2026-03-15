@@ -20,6 +20,5 @@ class DataResult(BaseModel):
 
 
 class DataAgent(BaseAgent[DataModel, DataResult]):
-
     def __init__(self, model: str, instructions: str) -> None:
         super().__init__(model=model, output_type=DataResult, instructions=instructions)

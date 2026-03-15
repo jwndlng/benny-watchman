@@ -23,7 +23,6 @@ class AnalystModel(BaseModel):
 
 
 class AnalystAgent(BaseAgent[AnalystModel, IncidentReport]):
-
     def __init__(self, model: str, runbook: Runbook) -> None:
         super().__init__(
             model=model,

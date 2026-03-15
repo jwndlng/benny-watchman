@@ -21,7 +21,6 @@ class EnrichmentResult(BaseModel):
 
 
 class EnrichmentAgent(BaseAgent[EnrichmentModel, EnrichmentResult]):
-
     def __init__(self, model: str, instructions: str) -> None:
         super().__init__(
             model=model, output_type=EnrichmentResult, instructions=instructions
