@@ -1,7 +1,9 @@
-# AI SOC Analyst (Security Hero)
+# benny-watchman
+
+> Benny, never sleeps, Watchman.
 
 ## Project Overview
-An autonomous AI agent that performs Tier 2/3 Security Analyst work. It receives alerts via REST API, investigates them using an agentic reasoning loop (ReAct pattern) with Clickhouse log data via MCP, and returns structured triage reports. Fully unattended, 24/7 operation.
+Benny is an autonomous AI security analyst. He receives alerts via REST API, investigates them using an agentic reasoning loop (ReAct pattern) with Clickhouse log data via MCP, and returns structured triage reports. Fully unattended, 24/7 operation.
 
 ## Tech Stack
 - **Language:** Python
