@@ -11,17 +11,13 @@ from src.agents.base import BaseAgent
 
 
 class EnrichmentModel(BaseModel):
-    indicators: list[str] = Field(description="IPs, domains, hashes, or URLs to enrich")
-
-
-class EnrichmentResult(BaseModel):
     enrichments: dict[str, dict] = Field(
         description="Enrichment data keyed by indicator"
     )
 
 
-class EnrichmentAgent(BaseAgent[EnrichmentModel, EnrichmentResult]):
+class EnrichmentAgent(BaseAgent[EnrichmentModel]):
     def __init__(self, model: str, instructions: str) -> None:
         super().__init__(
-            model=model, output_type=EnrichmentResult, instructions=instructions
+            model=model, output_type=EnrichmentModel, instructions=instructions
         )
