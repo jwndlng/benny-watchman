@@ -208,3 +208,9 @@ __marimo__/
 
 # Project management
 pm/
+
+# Local dev database
+data.db
+
+# Harness dataset files (user-supplied, not committed)
+tests/harness/data/

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.harness.seeder.synthetic_db import SyntheticDataset
 from src.api.app import create_app
 from src.schemas.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
@@ -33,6 +34,13 @@ def _stub_investigation(alert_id: str, runbook_name: str) -> Investigation:
         completed_at=now,
         report=report,
     )
+
+
+@pytest.fixture
+def seeded_db(tmp_path) -> str:
+    db_path = str(tmp_path / "data.db")
+    SyntheticDataset(rows=200, seed=42).load(db_path)
+    return db_path
 
 
 @pytest.fixture
