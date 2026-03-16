@@ -28,7 +28,9 @@ class DataSQLiteAgent(DataAgent):
     def __init__(self, model: str, instructions: str, db_path: str) -> None:
         self._conn = sqlite3.connect(db_path)
         self._conn.row_factory = sqlite3.Row
-        super().__init__(model=model, instructions=instructions + self._schema_context())
+        super().__init__(
+            model=model, instructions=instructions + self._schema_context()
+        )
 
         self.agent.tool_plain(self.list_tables)
         self.agent.tool_plain(self.get_schema)
@@ -55,7 +57,10 @@ class DataSQLiteAgent(DataAgent):
                 flags = " ".join(
                     filter(
                         None,
-                        ["NOT NULL" if col["notnull"] else "", "PK" if col["pk"] else ""],
+                        [
+                            "NOT NULL" if col["notnull"] else "",
+                            "PK" if col["pk"] else "",
+                        ],
                     )
                 )
                 lines.append(f"  - {col['name']} ({col['type']}) {flags}".rstrip())
