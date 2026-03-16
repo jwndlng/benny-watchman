@@ -10,18 +10,23 @@ from src.schemas.investigation import Investigation
 
 class Orchestrator:
     def __init__(
-        self, registry: RunbookRegistry, persistence: PersistenceBackend, model: str
+        self,
+        registry: RunbookRegistry,
+        persistence: PersistenceBackend,
+        model: str,
+        db_path: str,
     ) -> None:
         self._router = Router(registry)
         self._persistence = persistence
         self._model = model
+        self._db_path = db_path
 
     def investigate(self, alert: Alert) -> Investigation | None:
         runbook = self._router.route(alert)
         if runbook is None:
             return None
-        investigation = AnalystAgent(model=self._model, runbook=runbook).investigate(
-            alert
-        )
+        investigation = AnalystAgent(
+            model=self._model, runbook=runbook, db_path=self._db_path
+        ).investigate(alert)
         self._persistence.save(investigation)
         return investigation
