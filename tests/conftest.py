@@ -47,10 +47,14 @@ def client(tmp_path):
     class _Agent:
         model = "test:stub"
 
+    class _Data:
+        db_path = str(tmp_path / "data.db")
+
     class _Config:
         persistence = _Persistence()
         runbooks = _Runbooks()
         agent = _Agent()
+        data = _Data()
 
     app = create_app(cfg=_Config())
     app.config["TESTING"] = True

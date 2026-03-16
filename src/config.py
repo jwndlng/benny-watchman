@@ -16,10 +16,16 @@ class _AgentConfig:
     model = os.environ.get("AGENT_MODEL", "anthropic:claude-sonnet-4-6")
 
 
+class _DataConfig:
+    engine = os.environ.get("DATA_BACKEND_ENGINE", "sqlite")
+    db_path = os.environ.get("DATA_BACKEND_DB_PATH", "data.db")
+
+
 class Config:
     persistence = _PersistenceConfig()
     runbooks = _RunbooksConfig()
     agent = _AgentConfig()
+    data = _DataConfig()
 
 
 config = Config()

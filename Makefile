@@ -1,4 +1,4 @@
-.PHONY: install test test-unit test-integration run lint fmt
+.PHONY: install test test-unit test-integration test-e2e run lint fmt
 
 install:
 	uv sync --group dev
@@ -11,6 +11,9 @@ test-unit:
 
 test-integration:
 	uv run pytest tests/api/ tests/integration/ -v
+
+test-e2e:
+	uv run pytest tests/e2e/ -v -m e2e
 
 run:
 	uv run python main.py
