@@ -211,3 +211,6 @@ data.db
 
 # Harness dataset files (user-supplied, not committed)
 tests/harness/data/
+
+# Pydantic AI Logfire
+.logfire/
