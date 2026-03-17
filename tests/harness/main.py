@@ -9,8 +9,11 @@ Exit code 1 if any case fails.
 import argparse
 import sys
 
+import logfire
+
 from src.config import Config
 from src.runbook_registry import RunbookRegistry
+from src.utils.observability import setup_observability
 from tests.harness.cases.base_case import BaseCase
 from tests.harness.cases.case_brute_force import BruteForceCase
 from tests.harness.schema import CaseResult, HarnessReport
@@ -82,6 +85,7 @@ def _print_report(report: HarnessReport) -> None:
 
 
 if __name__ == "__main__":
+    setup_observability()
     cfg = Config()
 
     parser = argparse.ArgumentParser(description="Run harness investigation cases")
@@ -109,4 +113,5 @@ if __name__ == "__main__":
 
     _print_report(report)
 
+    logfire.shutdown()
     sys.exit(0 if report.failed == 0 else 1)
