@@ -10,7 +10,7 @@ import argparse
 import sys
 
 from src.config import Config
-from src.runbook.registry import RunbookRegistry
+from src.runbook_registry import RunbookRegistry
 from tests.harness.cases.base_case import BaseCase
 from tests.harness.cases.case_brute_force import BruteForceCase
 from tests.harness.schema import CaseResult, HarnessReport

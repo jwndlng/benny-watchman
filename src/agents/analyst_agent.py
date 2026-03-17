@@ -8,21 +8,16 @@ Iterates until confident in a conclusion or the tool call limit is reached.
 import uuid
 from datetime import datetime, timezone
 
+import logfire
 from pydantic import BaseModel, Field
 
 from src.agents.base import BaseAgent
-from src.agents.data_agent import DataModel
-from src.agents.data_sqlite_agent import DataSQLiteAgent
-from src.runbook.model import Runbook
+from src.agents.data_agent import DataAgent, DataModel
+from src.config import config
+from src.schemas.runbook import Runbook
 from src.schemas.alert import Alert
 from src.schemas.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
-
-_DATA_AGENT_INSTRUCTIONS = (
-    "You are a database expert. Use list_tables to discover available tables, "
-    "get_schema to understand their structure, get_sample to preview data, "
-    "and run_query to execute SQL queries. Always check schema before writing queries."
-)
 
 
 class AnalystModel(BaseModel):
@@ -41,27 +36,51 @@ class AnalystModel(BaseModel):
 
 
 class AnalystAgent(BaseAgent[AnalystModel]):
-    def __init__(self, model: str, runbook: Runbook, db_path: str) -> None:
+    @property
+    def instructions(self) -> str:
+        return self._runbook.instructions
+
+    @property
+    def constraints(self) -> list[str]:
+        return [
+            "Call query_data at most 3 times total",
+            "Issue one query at a time — not multiple in parallel",
+            "Stop querying as soon as you have sufficient evidence to reach a verdict",
+        ]
+
+    def __init__(
+        self, model: str, runbook: Runbook, db_path: str | None = None
+    ) -> None:
+        self._runbook = (
+            runbook  # must be set before super().__init__ calls self.instructions
+        )
         super().__init__(
             model=model,
             output_type=AnalystModel,
-            instructions=runbook.instructions,
+            name=f"AnalystAgent({runbook.name})",
         )
-        self._runbook = runbook
 
-        # TODO: hardcoded to SQLite — replace with dynamic backend selection
-        #       once multi-backend support is introduced (see pm/AGENT_DESIGN.md).
-        data_agent = DataSQLiteAgent(
-            model=model, instructions=_DATA_AGENT_INSTRUCTIONS, db_path=db_path
+        data_agent = DataAgent.create(
+            engine=config.data.engine,
+            model=model,
+            db_path=db_path or config.data.db_path,
         )
 
         @self.agent.tool_plain
         async def query_data(request: str) -> DataModel:
-            result = await data_agent.agent.run(request)
-            return result.output
+            with logfire.span("query_data", request=request):
+                result = await data_agent.run(request)
+                u = result.usage()
+                logfire.info(
+                    "query_data complete",
+                    requests=u.requests,
+                    input_tokens=u.input_tokens,
+                    output_tokens=u.output_tokens,
+                )
+                return result.output
 
     def investigate(self, alert: Alert) -> Investigation:
-        result = self.agent.run_sync(
+        result = self.run_sync(
             f"Investigate the following alert:\n{alert.model_dump_json()}"
         )
         m = result.output

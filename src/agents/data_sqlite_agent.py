@@ -7,7 +7,9 @@ Tools remain available for fresh queries during the investigation.
 
 import re
 import sqlite3
+import threading
 
+import logfire
 from pydantic import BaseModel
 
 from src.agents.data_agent import DataAgent
@@ -25,12 +27,15 @@ class ColumnInfo(BaseModel):
 
 
 class DataSQLiteAgent(DataAgent):
-    def __init__(self, model: str, instructions: str, db_path: str) -> None:
-        self._conn = sqlite3.connect(db_path)
+    @property
+    def instructions(self) -> str:
+        return super().instructions + self._schema_context()
+
+    def __init__(self, model: str, db_path: str) -> None:
+        self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
-        super().__init__(
-            model=model, instructions=instructions + self._schema_context()
-        )
+        self._lock = threading.Lock()
+        super().__init__(model=model)
 
         self.agent.tool_plain(self.list_tables)
         self.agent.tool_plain(self.get_schema)
@@ -67,31 +72,42 @@ class DataSQLiteAgent(DataAgent):
         return "\n".join(lines)
 
     def list_tables(self) -> list[TableInfo]:
-        rows = self._conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        ).fetchall()
-        return [TableInfo(name=row["name"]) for row in rows]
+        with logfire.span("list_tables"):
+            with self._lock:
+                rows = self._conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+                ).fetchall()
+            return [TableInfo(name=row["name"]) for row in rows]
 
     def get_schema(self, table: str) -> list[ColumnInfo]:
         table = self._safe_table(table)
-        rows = self._conn.execute(f"PRAGMA table_info({table})").fetchall()
-        return [
-            ColumnInfo(
-                name=row["name"],
-                type=row["type"],
-                notnull=bool(row["notnull"]),
-                pk=bool(row["pk"]),
-            )
-            for row in rows
-        ]
+        with logfire.span("get_schema", table=table):
+            with self._lock:
+                rows = self._conn.execute(f"PRAGMA table_info({table})").fetchall()
+            return [
+                ColumnInfo(
+                    name=row["name"],
+                    type=row["type"],
+                    notnull=bool(row["notnull"]),
+                    pk=bool(row["pk"]),
+                )
+                for row in rows
+            ]
 
     def get_sample(self, table: str, n: int = 5) -> list[dict]:
         table = self._safe_table(table)
-        rows = self._conn.execute(f"SELECT * FROM {table} LIMIT {n}").fetchall()
-        return [dict(row) for row in rows]
+        with logfire.span("get_sample", table=table, n=n):
+            with self._lock:
+                rows = self._conn.execute(f"SELECT * FROM {table} LIMIT {n}").fetchall()
+            return [dict(row) for row in rows]
 
     def run_query(self, sql: str) -> list[dict]:
+        # Take only the first statement — some models generate multi-statement SQL
+        sql = sql.split(";")[0].strip()
         if "limit" not in sql.lower():
-            sql = sql.rstrip("; ") + " LIMIT 500"
-        rows = self._conn.execute(sql).fetchall()
-        return [dict(row) for row in rows]
+            sql += " LIMIT 500"
+        with logfire.span("run_query", sql=sql):
+            with self._lock:
+                rows = self._conn.execute(sql).fetchall()
+            logfire.info("run_query result", row_count=len(rows))
+            return [dict(row) for row in rows]

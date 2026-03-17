@@ -2,6 +2,11 @@
 
 import os
 
+import logfire
+
+logfire.configure()
+logfire.instrument_pydantic_ai()
+
 
 class _PersistenceConfig:
     engine = os.environ.get("PERSISTENCE_ENGINE", "sqlite")
@@ -13,7 +18,25 @@ class _RunbooksConfig:
 
 
 class _AgentConfig:
-    model = os.environ.get("AGENT_MODEL", "anthropic:claude-sonnet-4-6")
+    model = os.environ.get("AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview")
+    api_key = os.environ.get("AGENT_MODEL_API_KEY")
+    max_requests = int(os.environ.get("AGENT_MAX_REQUESTS", "15"))
+    max_data_requests = int(os.environ.get("AGENT_MAX_DATA_REQUESTS", "10"))
+
+    def set_model_api_key(self, model: str | None = None) -> None:
+        """PydanticAI delegates to vendor SDKs (Anthropic, Google, OpenAI) which each
+        read their own provider-specific env var. Map AGENT_MODEL_API_KEY to the right one.
+        Pass model explicitly when using a runtime override (e.g. harness --model flag)."""
+        target = model or self.model
+        if not self.api_key or ":" not in target:
+            return
+        match target.split(":")[0]:
+            case "anthropic":
+                os.environ["ANTHROPIC_API_KEY"] = self.api_key
+            case "google-gla":
+                os.environ["GEMINI_API_KEY"] = self.api_key
+            case "openai":
+                os.environ["OPENAI_API_KEY"] = self.api_key
 
 
 class _DataConfig:
@@ -29,3 +52,4 @@ class Config:
 
 
 config = Config()
+config.agent.set_model_api_key()

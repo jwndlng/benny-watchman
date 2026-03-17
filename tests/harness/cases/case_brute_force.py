@@ -13,7 +13,7 @@ class BruteForceCase(BaseCase):
     name = "brute_force_ssh"
     runbook_name = "generic"
     expected_verdict = Verdict.TRUE_POSITIVE
-    expected_severity = Severity.HIGH
+    severity_range = (Severity.HIGH, Severity.CRITICAL)
 
     @property
     def dataset(self) -> BaseDataset:

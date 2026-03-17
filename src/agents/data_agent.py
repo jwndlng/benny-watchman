@@ -19,15 +19,29 @@ class DataModel(BaseModel):
 
 
 class DataAgent(BaseAgent[DataModel]):
-    def __init__(self, model: str, instructions: str) -> None:
-        super().__init__(model=model, output_type=DataModel, instructions=instructions)
+    @property
+    def instructions(self) -> str:
+        return (
+            "You are a database expert. Use list_tables to discover available tables, "
+            "get_schema to understand their structure, get_sample to preview data, "
+            "and run_query to execute SQL queries. Always check schema before writing queries."
+        )
+
+    @property
+    def constraints(self) -> list[str]:
+        return [
+            "Use at most 4 tool calls total",
+            "Prefer targeted queries — avoid redundant schema lookups or broad scans",
+            "Never use SELECT * — always name only the columns needed to answer the request",
+        ]
+
+    def __init__(self, model: str) -> None:
+        super().__init__(model=model, output_type=DataModel, name="DataAgent")
 
     @classmethod
-    def create(
-        cls, engine: str, model: str, instructions: str, **kwargs
-    ) -> "DataAgent":
+    def create(cls, engine: str, model: str, **kwargs) -> "DataAgent":
         if engine == "sqlite":
             from src.agents.data_sqlite_agent import DataSQLiteAgent
 
-            return DataSQLiteAgent(model=model, instructions=instructions, **kwargs)
+            return DataSQLiteAgent(model=model, **kwargs)
         raise ValueError(f"Unknown data backend: {engine!r}")

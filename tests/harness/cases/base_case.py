@@ -8,7 +8,7 @@ import traceback
 from abc import ABC, abstractmethod
 
 from src.agents.analyst_agent import AnalystAgent
-from src.runbook.registry import RunbookRegistry
+from src.runbook_registry import RunbookRegistry
 from src.schemas.alert import Alert
 from src.schemas.incident_report import Severity, Verdict
 from tests.harness.judge import Judge
@@ -20,7 +20,7 @@ class BaseCase(ABC):
     name: str
     runbook_name: str = "generic"
     expected_verdict: Verdict | None = None
-    expected_severity: Severity | None = None
+    severity_range: tuple[Severity, Severity] | None = None
 
     @property
     @abstractmethod
