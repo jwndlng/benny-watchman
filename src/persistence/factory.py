@@ -9,7 +9,9 @@ def create_persistence(engine: str, **kwargs) -> PersistenceBackend:
 
         return SQLitePersistence(**kwargs)
     if engine == "clickhouse":
-        from src.persistence.clickhouse import ClickhousePersistence
+        from src.persistence.clickhouse import (
+            ClickhousePersistence,
+        )  # not yet implemented
 
         return ClickhousePersistence(**kwargs)
     raise ValueError(f"Unknown persistence engine: {engine!r}")
