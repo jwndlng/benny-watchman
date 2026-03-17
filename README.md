@@ -7,16 +7,17 @@ Benny is an autonomous AI security analyst. He receives alerts via REST API, inv
 ## How it works
 
 1. An alert arrives via `POST /investigate`
-2. The **Router** matches the alert type to a **Runbook** (YAML + Markdown investigation instructions)
-3. The **AnalystAgent** runs a ReAct loop — querying log data, enriching indicators, and reasoning until it reaches a conclusion or hits the iteration limit
+2. The **Orchestrator** matches the alert type to a **Runbook** (YAML + Markdown investigation instructions)
+3. The **AnalystAgent** runs a ReAct loop — querying log data and reasoning until it reaches a conclusion or hits the iteration limit
 4. A structured **Incident Report** is returned and persisted
 
 ## Stack
 
 - **Python 3.14** — Flask API, PydanticAI agents
 - **PydanticAI** — multi-agent framework with model-agnostic LLM support
-- **Pluggable data backends** — SQLite now; Clickhouse, Elasticsearch, and others via subclassed `DataAgent`
+- **Pluggable data backends** — SQLite now; ClickHouse, Elasticsearch, and others via subclassed `DataAgent`
 - **SQLite** — local persistence (pluggable; swap for any backend via config)
+- **Logfire** — observability for agent runs, tool calls, and token usage
 - **Docker** — immutable runtime; runbook changes trigger a new build
 
 ## Agents
@@ -62,9 +63,14 @@ All settings are read from environment variables:
 
 | Variable | Default | Description |
 |---|---|---|
-| `AGENT_MODEL` | `anthropic:claude-sonnet-4-6` | LLM to use for agents |
-| `PERSISTENCE_ENGINE` | `sqlite` | Storage backend (`sqlite`, …) |
-| `PERSISTENCE_DB_PATH` | `investigations.db` | SQLite file path |
+| `AGENT_MODEL` | `google-gla:gemini-3.1-flash-lite-preview` | LLM to use for all agents |
+| `AGENT_MODEL_API_KEY` | — | API key — mapped to the correct provider env var automatically |
+| `AGENT_MAX_REQUESTS` | `15` | Hard cap on LLM requests per agent run |
+| `AGENT_MAX_DATA_REQUESTS` | `10` | Hard cap on LLM requests for DataAgent runs |
+| `DATA_BACKEND_ENGINE` | `sqlite` | Data backend (`sqlite`, …) |
+| `DATA_BACKEND_DB_PATH` | `data.db` | Path to the security log database |
+| `PERSISTENCE_ENGINE` | `sqlite` | Investigation storage backend |
+| `PERSISTENCE_DB_PATH` | `investigations.db` | Path to the investigations database |
 | `RUNBOOKS_PATH` | `runbooks` | Directory containing runbook `.md` files |
 
 ## Runbooks
@@ -90,4 +96,6 @@ make lint              # ruff check + format check
 make fmt               # auto-format
 make test-unit         # unit tests only
 make test-integration  # API + integration tests
+make seed-db           # seed data.db with synthetic security logs
+make harness           # run golden-test harness against a live LLM
 ```
