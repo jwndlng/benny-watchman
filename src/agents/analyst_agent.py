@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 import logfire
 from pydantic import BaseModel, Field
 
-from src.agents.base import BaseAgent
+from src.agents.base_agent import BaseAgent
 from src.agents.data_agent import DataAgent, DataModel
 from src.config import config
 from src.schemas.runbook import Runbook
@@ -43,10 +43,12 @@ class AnalystAgent(BaseAgent[AnalystModel]):
     @property
     def constraints(self) -> list[str]:
         return [
-            "Call query_data at most 3 times total",
+            "Call query_data at most 2 times total",
             "Issue one query at a time — not multiple in parallel",
             "Stop querying as soon as you have sufficient evidence to reach a verdict",
         ]
+
+    _data_agent: DataAgent
 
     def __init__(
         self, model: str, runbook: Runbook, db_path: str | None = None
@@ -54,30 +56,23 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         self._runbook = (
             runbook  # must be set before super().__init__ calls self.instructions
         )
+        self._data_agent = DataAgent.create(
+            engine=config.data.engine,
+            model=model,
+            db_path=db_path or config.data.db_path,
+        )
         super().__init__(
             model=model,
             output_type=AnalystModel,
             name=f"AnalystAgent({runbook.name})",
         )
+        self.agent.tool_plain(self.query_data)
 
-        data_agent = DataAgent.create(
-            engine=config.data.engine,
-            model=model,
-            db_path=db_path or config.data.db_path,
-        )
-
-        @self.agent.tool_plain
-        async def query_data(request: str) -> DataModel:
-            with logfire.span("query_data", request=request):
-                result = await data_agent.run(request)
-                u = result.usage()
-                logfire.info(
-                    "query_data complete",
-                    requests=u.requests,
-                    input_tokens=u.input_tokens,
-                    output_tokens=u.output_tokens,
-                )
-                return result.output
+    async def query_data(self, request: str) -> DataModel:
+        """Fetch data from the security log database. Describe what you need in plain English."""
+        with logfire.span("query_data", request=request):
+            result = await self._data_agent.run(request)
+            return result.output
 
     def investigate(self, alert: Alert) -> Investigation:
         result = self.run_sync(

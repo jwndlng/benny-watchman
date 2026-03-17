@@ -7,7 +7,7 @@ Adding a new intel provider means adding a tool here only.
 
 from pydantic import BaseModel, Field
 
-from src.agents.base import BaseAgent
+from src.agents.base_agent import BaseAgent
 
 
 class EnrichmentModel(BaseModel):
@@ -17,7 +17,14 @@ class EnrichmentModel(BaseModel):
 
 
 class EnrichmentAgent(BaseAgent[EnrichmentModel]):
-    def __init__(self, model: str, instructions: str) -> None:
+    @property
+    def instructions(self) -> str:
+        return (
+            "You are a threat intelligence expert. Enrich indicators of compromise "
+            "(IPs, domains, hashes, URLs) using available tools and return structured findings."
+        )
+
+    def __init__(self, model: str) -> None:
         super().__init__(
-            model=model, output_type=EnrichmentModel, instructions=instructions
+            model=model, output_type=EnrichmentModel, name="EnrichmentAgent"
         )

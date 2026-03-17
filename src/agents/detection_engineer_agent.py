@@ -8,7 +8,7 @@ Post-MVP.
 
 from pydantic import BaseModel, Field
 
-from src.agents.base import BaseAgent
+from src.agents.base_agent import BaseAgent
 
 
 class DetectionEngineerModel(BaseModel):
@@ -17,9 +17,16 @@ class DetectionEngineerModel(BaseModel):
 
 
 class DetectionEngineerAgent(BaseAgent[DetectionEngineerModel]):
-    def __init__(self, model: str, instructions: str) -> None:
+    @property
+    def instructions(self) -> str:
+        return (
+            "You are a detection engineering expert. Based on the provided incident report, "
+            "draft an optimized detection rule with a clear explanation of the changes."
+        )
+
+    def __init__(self, model: str) -> None:
         super().__init__(
             model=model,
             output_type=DetectionEngineerModel,
-            instructions=instructions,
+            name="DetectionEngineerAgent",
         )

@@ -37,11 +37,6 @@ class DataSQLiteAgent(DataAgent):
         self._lock = threading.Lock()
         super().__init__(model=model)
 
-        self.agent.tool_plain(self.list_tables)
-        self.agent.tool_plain(self.get_schema)
-        self.agent.tool_plain(self.get_sample)
-        self.agent.tool_plain(self.run_query)
-
     def _safe_table(self, table: str) -> str:
         if not re.match(r"^[a-zA-Z0-9_]+$", table):
             raise ValueError(f"Invalid table name: {table!r}")
@@ -71,43 +66,48 @@ class DataSQLiteAgent(DataAgent):
                 lines.append(f"  - {col['name']} ({col['type']}) {flags}".rstrip())
         return "\n".join(lines)
 
+    @logfire.instrument("list_tables")
     def list_tables(self) -> list[TableInfo]:
-        with logfire.span("list_tables"):
-            with self._lock:
-                rows = self._conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-                ).fetchall()
-            return [TableInfo(name=row["name"]) for row in rows]
+        """Return all table names available in the database."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+            ).fetchall()
+        return [TableInfo(name=row["name"]) for row in rows]
 
+    @logfire.instrument("get_schema")
     def get_schema(self, table: str) -> list[ColumnInfo]:
+        """Return column names, types, and constraints for the given table."""
         table = self._safe_table(table)
-        with logfire.span("get_schema", table=table):
-            with self._lock:
-                rows = self._conn.execute(f"PRAGMA table_info({table})").fetchall()
-            return [
-                ColumnInfo(
-                    name=row["name"],
-                    type=row["type"],
-                    notnull=bool(row["notnull"]),
-                    pk=bool(row["pk"]),
-                )
-                for row in rows
-            ]
+        with self._lock:
+            rows = self._conn.execute(f"PRAGMA table_info({table})").fetchall()
+        return [
+            ColumnInfo(
+                name=row["name"],
+                type=row["type"],
+                notnull=bool(row["notnull"]),
+                pk=bool(row["pk"]),
+            )
+            for row in rows
+        ]
 
+    @logfire.instrument("get_sample")
     def get_sample(self, table: str, n: int = 5) -> list[dict]:
+        """Return n sample rows from the table to understand its structure and values."""
         table = self._safe_table(table)
-        with logfire.span("get_sample", table=table, n=n):
-            with self._lock:
-                rows = self._conn.execute(f"SELECT * FROM {table} LIMIT {n}").fetchall()
-            return [dict(row) for row in rows]
+        with self._lock:
+            rows = self._conn.execute(f"SELECT * FROM {table} LIMIT {n}").fetchall()
+        return [dict(row) for row in rows]
 
+    @logfire.instrument("run_query")
     def run_query(self, sql: str) -> list[dict]:
+        """Execute a read-only SQLite SELECT query and return matching rows.
+        Use only columns you need — never SELECT *. Single statement only."""
         # Take only the first statement — some models generate multi-statement SQL
         sql = sql.split(";")[0].strip()
         if "limit" not in sql.lower():
             sql += " LIMIT 500"
-        with logfire.span("run_query", sql=sql):
-            with self._lock:
-                rows = self._conn.execute(sql).fetchall()
-            logfire.info("run_query result", row_count=len(rows))
-            return [dict(row) for row in rows]
+        with self._lock:
+            rows = self._conn.execute(sql).fetchall()
+        logfire.info("run_query result", row_count=len(rows))
+        return [dict(row) for row in rows]

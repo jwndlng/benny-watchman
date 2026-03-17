@@ -9,7 +9,7 @@ Post-MVP.
 
 from pydantic import BaseModel, Field
 
-from src.agents.base import BaseAgent
+from src.agents.base_agent import BaseAgent
 
 
 class ThreatHunterModel(BaseModel):
@@ -25,9 +25,14 @@ class ThreatHunterModel(BaseModel):
 
 
 class ThreatHunterAgent(BaseAgent[ThreatHunterModel]):
-    def __init__(self, model: str, instructions: str) -> None:
+    @property
+    def instructions(self) -> str:
+        return (
+            "You are a threat hunter. Given a hypothesis, autonomously query log data "
+            "to find supporting or refuting evidence. Be systematic — document every query run."
+        )
+
+    def __init__(self, model: str) -> None:
         super().__init__(
-            model=model,
-            output_type=ThreatHunterModel,
-            instructions=instructions,
+            model=model, output_type=ThreatHunterModel, name="ThreatHunterAgent"
         )
