@@ -2,26 +2,23 @@
 
 import os
 
-import logfire
-
-logfire.configure()
-logfire.instrument_pydantic_ai()
-
 
 class _PersistenceConfig:
-    engine = os.environ.get("PERSISTENCE_ENGINE", "sqlite")
-    db_path = os.environ.get("PERSISTENCE_DB_PATH", "investigations.db")
+    engine: str = os.environ.get("PERSISTENCE_ENGINE", "sqlite")
+    db_path: str = os.environ.get("PERSISTENCE_DB_PATH", "investigations.db")
 
 
 class _RunbooksConfig:
-    path = os.environ.get("RUNBOOKS_PATH", "runbooks")
+    path: str = os.environ.get("RUNBOOKS_PATH", "runbooks")
 
 
 class _AgentConfig:
-    model = os.environ.get("AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview")
-    api_key = os.environ.get("AGENT_MODEL_API_KEY")
-    max_requests = int(os.environ.get("AGENT_MAX_REQUESTS", "15"))
-    max_data_requests = int(os.environ.get("AGENT_MAX_DATA_REQUESTS", "10"))
+    model: str = os.environ.get(
+        "AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview"
+    )
+    api_key: str | None = os.environ.get("AGENT_MODEL_API_KEY")
+    max_requests: int = int(os.environ.get("AGENT_MAX_REQUESTS", "15"))
+    max_data_requests: int = int(os.environ.get("AGENT_MAX_DATA_REQUESTS", "10"))
 
     def set_model_api_key(self, model: str | None = None) -> None:
         """PydanticAI delegates to vendor SDKs (Anthropic, Google, OpenAI) which each
@@ -40,8 +37,8 @@ class _AgentConfig:
 
 
 class _DataConfig:
-    engine = os.environ.get("DATA_BACKEND_ENGINE", "sqlite")
-    db_path = os.environ.get("DATA_BACKEND_DB_PATH", "data.db")
+    engine: str = os.environ.get("DATA_BACKEND_ENGINE", "sqlite")
+    db_path: str = os.environ.get("DATA_BACKEND_DB_PATH", "data.db")
 
 
 class Config:
