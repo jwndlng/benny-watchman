@@ -43,27 +43,17 @@ class DataSQLiteAgent(DataAgent):
         return table
 
     def _schema_context(self) -> str:
-        tables = self._conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        ).fetchall()
+        tables = self.list_tables()
         if not tables:
             return "\n\nNo tables found in the database."
         lines = ["\n\nAvailable schema:"]
-        for table_row in tables:
-            table = table_row["name"]
-            lines.append(f"\nTable: {table}")
-            cols = self._conn.execute(f"PRAGMA table_info({table})").fetchall()
-            for col in cols:
+        for table in tables:
+            lines.append(f"\nTable: {table.name}")
+            for col in self.get_schema(table.name):
                 flags = " ".join(
-                    filter(
-                        None,
-                        [
-                            "NOT NULL" if col["notnull"] else "",
-                            "PK" if col["pk"] else "",
-                        ],
-                    )
+                    filter(None, ["NOT NULL" if col.notnull else "", "PK" if col.pk else ""])
                 )
-                lines.append(f"  - {col['name']} ({col['type']}) {flags}".rstrip())
+                lines.append(f"  - {col.name} ({col.type}) {flags}".rstrip())
         return "\n".join(lines)
 
     @logfire.instrument("list_tables")
@@ -92,7 +82,7 @@ class DataSQLiteAgent(DataAgent):
         ]
 
     @logfire.instrument("get_sample")
-    def get_sample(self, table: str, n: int = 5) -> list[dict]:
+    def get_sample(self, table: str, n: int = 5) -> list[dict[str, object]]:
         """Return n sample rows from the table to understand its structure and values."""
         table = self._safe_table(table)
         with self._lock:
@@ -100,7 +90,7 @@ class DataSQLiteAgent(DataAgent):
         return [dict(row) for row in rows]
 
     @logfire.instrument("run_query")
-    def run_query(self, sql: str) -> list[dict]:
+    def run_query(self, sql: str) -> list[dict[str, object]]:
         """Execute a read-only SQLite SELECT query and return matching rows.
         Use only columns you need — never SELECT *. Single statement only."""
         # Take only the first statement — some models generate multi-statement SQL

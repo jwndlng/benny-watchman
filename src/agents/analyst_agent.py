@@ -48,15 +48,13 @@ class AnalystAgent(BaseAgent[AnalystModel]):
             "Stop querying as soon as you have sufficient evidence to reach a verdict",
         ]
 
-    _data_agent: DataAgent
-
     def __init__(
         self, model: str, runbook: Runbook, db_path: str | None = None
     ) -> None:
         self._runbook = (
             runbook  # must be set before super().__init__ calls self.instructions
         )
-        self._data_agent = DataAgent.create(
+        self._data_agent: DataAgent = DataAgent.create(
             engine=config.data.engine,
             model=model,
             db_path=db_path or config.data.db_path,

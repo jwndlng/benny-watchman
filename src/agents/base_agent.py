@@ -1,5 +1,7 @@
 """Base wrapper around pydantic_ai.Agent — all agents extend this."""
 
+from abc import ABC, abstractmethod
+
 import logfire
 from pydantic_ai import Agent, AgentRunResult
 from pydantic_ai.models import Model
@@ -8,10 +10,10 @@ from pydantic_ai.usage import UsageLimits
 from src.config import config
 
 
-class BaseAgent[TOutput]:
+class BaseAgent[TOutput](ABC):
     @property
-    def instructions(self) -> str:
-        raise NotImplementedError
+    @abstractmethod
+    def instructions(self) -> str: ...
 
     @property
     def constraints(self) -> list[str]:
