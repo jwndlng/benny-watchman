@@ -20,5 +20,5 @@ class HarnessReport(BaseModel):
     total: int
     passed: int
     failed: int
-    skipped: int  # cases that raised an exception
+    skipped: int  # cases with no assertion defined (passed is None)
     results: list[CaseResult]

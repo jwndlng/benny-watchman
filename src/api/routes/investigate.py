@@ -1,6 +1,6 @@
 """POST /investigate — submit an alert, returns an Investigation."""
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, Response, request, jsonify, current_app
 from pydantic import ValidationError
 from src.api.schemas.investigate_request import InvestigateRequest
 from src.schemas.alert import Alert
@@ -9,7 +9,8 @@ bp = Blueprint("investigate", __name__)
 
 
 @bp.post("/investigate")
-def investigate():
+def investigate() -> tuple[Response, int]:
+    """Submit an alert for investigation and return the resulting Investigation."""
     try:
         body = InvestigateRequest.model_validate(request.get_json())
     except ValidationError as e:
