@@ -183,7 +183,9 @@ def seed_database(
     Safe to call from pytest fixtures — no side effects beyond writing to db_path.
     """
     rng = random.Random(seed)
-    base_time = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    base_time = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
 
     conn = sqlite3.connect(db_path)
     try:

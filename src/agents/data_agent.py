@@ -16,7 +16,9 @@ from src.agents.base_agent import BaseAgent
 
 
 class DataModel(BaseModel):
-    rows: list[dict[str, object]] = Field(description="Rows retrieved matching the request")
+    rows: list[dict[str, object]] = Field(
+        description="Rows retrieved matching the request"
+    )
     notes: str = Field(description="What was queried and any relevant context")
 
 
@@ -35,7 +37,7 @@ class DataAgent(BaseAgent[DataModel]):
             "Use at most 3 tool calls total",
             "Prefer targeted queries — avoid redundant schema lookups or broad scans",
             "Never use SELECT * — always name only the columns needed to answer the request",
-            "Aggregate datasets using group by as much as possible to minimize the number of rows returned"
+            "Aggregate datasets using group by as much as possible to minimize the number of rows returned",
         ]
 
     @abstractmethod

@@ -51,7 +51,10 @@ class DataSQLiteAgent(DataAgent):
             lines.append(f"\nTable: {table.name}")
             for col in self.get_schema(table.name):
                 flags = " ".join(
-                    filter(None, ["NOT NULL" if col.notnull else "", "PK" if col.pk else ""])
+                    filter(
+                        None,
+                        ["NOT NULL" if col.notnull else "", "PK" if col.pk else ""],
+                    )
                 )
                 lines.append(f"  - {col.name} ({col.type}) {flags}".rstrip())
         return "\n".join(lines)
