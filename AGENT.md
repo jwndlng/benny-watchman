@@ -7,7 +7,7 @@ Benny is an autonomous AI security analyst. He receives alerts via REST API, inv
 
 ## Tech Stack
 - **Language:** Python
-- **API:** Flask (or similar lightweight framework)
+- **API:** Flask
 - **Data:** SQLite (dev/test) → ClickHouse via MCP stdio transport (production)
 - **LLM:** Model-agnostic (Anthropic, Google, OpenAI) — configurable at runtime via `AGENT_MODEL`
 - **Observability:** Logfire (PydanticAI instrumentation + custom spans)
@@ -27,7 +27,6 @@ Benny is an autonomous AI security analyst. He receives alerts via REST API, inv
 - `system_prompt` assembles the final prompt: `instructions + constraints` — defined in `BaseAgent`, not overridden
 - `constraints` are agent-specific limits (tool call budgets, query discipline) injected at the end of the system prompt
 - Tools are implemented as methods and registered in `__init__` via `self.agent.tool_plain(self.method)` — no closures
-- Base class registers shared tools — subclasses only implement them
 - Tool docstrings are the tool description sent to the LLM — keep them precise and include input expectations
 
 ## Coding Guidelines
@@ -42,7 +41,6 @@ Benny is an autonomous AI security analyst. He receives alerts via REST API, inv
 - Docstrings should describe: what the tool does, what the input expects, and any hard constraints (e.g. SQLite-only, read-only, no `SELECT *`)
 - Tools are implemented as methods on the agent class, never as closures
 - Tools are registered in `__init__` via `self.agent.tool_plain(self.method)`
-- Base class registers shared tools — subclasses only implement them
 - Keep tool results focused and small — every byte returned becomes input tokens on the next LLM turn
 - Return structured Pydantic types where possible so the LLM can parse results reliably
 
@@ -55,8 +53,8 @@ Benny is an autonomous AI security analyst. He receives alerts via REST API, inv
 - Output tokens stay small (final structured JSON + tool calls) — input is the main cost driver
 
 ## Key Files
-- `pm/DESIGN.md` — Full architecture and requirements specification
-- `pm/AGENT_DESIGN.md` — Concrete agent design, flows, and PydanticAI implementation
-- `pm/MILESTONES.md` — Project stages from skeleton to full PoC
-- `pm/TODO.md` — Open design questions to resolve
 - `runbooks/` — Runbook definitions (YAML frontmatter + Markdown)
+- `src/engines/` — Query engine abstractions (SQLite now, ClickHouse next)
+- `src/agents/` — AnalystAgent, DataAgent, BaseAgent
+- `src/models.py` — Persistence models backed by Engine
+- `src/runbook_registry.py` — Runbook loader and matcher
