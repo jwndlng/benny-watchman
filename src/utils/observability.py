@@ -3,7 +3,7 @@
 import logfire
 
 
-def setup_observability(flask_app=None) -> None:
+def setup_observability(flask_app: object = None) -> None:
     """Configure Logfire instrumentation for PydanticAI and optionally Flask."""
     logfire.configure(distributed_tracing=True)
     logfire.instrument_pydantic_ai()

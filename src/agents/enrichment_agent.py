@@ -11,7 +11,7 @@ from src.agents.base_agent import BaseAgent
 
 
 class EnrichmentModel(BaseModel):
-    enrichments: dict[str, dict] = Field(
+    enrichments: dict[str, dict[str, object]] = Field(
         description="Enrichment data keyed by indicator"
     )
 

@@ -4,15 +4,21 @@ import os
 
 
 class _PersistenceConfig:
+    """Investigation storage settings."""
+
     engine: str = os.environ.get("PERSISTENCE_ENGINE", "sqlite")
     db_path: str = os.environ.get("PERSISTENCE_DB_PATH", "investigations.db")
 
 
 class _RunbooksConfig:
+    """Runbook loader settings."""
+
     path: str = os.environ.get("RUNBOOKS_PATH", "runbooks")
 
 
 class _AgentConfig:
+    """LLM agent settings."""
+
     model: str = os.environ.get(
         "AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview"
     )
@@ -37,11 +43,15 @@ class _AgentConfig:
 
 
 class _DataConfig:
+    """Security log backend settings."""
+
     engine: str = os.environ.get("DATA_BACKEND_ENGINE", "sqlite")
     db_path: str = os.environ.get("DATA_BACKEND_DB_PATH", "data.db")
 
 
 class Config:
+    """Top-level application configuration assembled from environment variables."""
+
     persistence = _PersistenceConfig()
     runbooks = _RunbooksConfig()
     agent = _AgentConfig()

@@ -2,4 +2,4 @@
 
 
 class MCPServer:
-    pass
+    """MCP server for interactive threat hunting sessions (post-MVP)."""
