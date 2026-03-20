@@ -1,63 +1,25 @@
-"""SQLite-backed DataAgent — owns the connection and registers query tools.
-
-Schema is pre-loaded into the system prompt at init time so the agent
-knows what data is available without spending tool calls on discovery.
-Tools remain available for fresh queries during the investigation.
-"""
+"""SQLite query engine."""
 
 import re
 import sqlite3
 import threading
 
 import logfire
-from pydantic import BaseModel
 
-from src.agents.data_agent import DataAgent
-
-
-class TableInfo(BaseModel):
-    name: str
+from src.engines.base import ColumnInfo, Engine, TableInfo
 
 
-class ColumnInfo(BaseModel):
-    name: str
-    type: str
-    notnull: bool
-    pk: bool
-
-
-class DataSQLiteAgent(DataAgent):
-    @property
-    def instructions(self) -> str:
-        return super().instructions + self._schema_context()
-
-    def __init__(self, model: str, db_path: str) -> None:
+class SQLiteEngine(Engine):
+    def __init__(self, db_path: str) -> None:
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.Lock()
-        super().__init__(model=model)
 
     def _safe_table(self, table: str) -> str:
+        """Validate table name to prevent injection."""
         if not re.match(r"^[a-zA-Z0-9_]+$", table):
             raise ValueError(f"Invalid table name: {table!r}")
         return table
-
-    def _schema_context(self) -> str:
-        tables = self.list_tables()
-        if not tables:
-            return "\n\nNo tables found in the database."
-        lines = ["\n\nAvailable schema:"]
-        for table in tables:
-            lines.append(f"\nTable: {table.name}")
-            for col in self.get_schema(table.name):
-                flags = " ".join(
-                    filter(
-                        None,
-                        ["NOT NULL" if col.notnull else "", "PK" if col.pk else ""],
-                    )
-                )
-                lines.append(f"  - {col.name} ({col.type}) {flags}".rstrip())
-        return "\n".join(lines)
 
     @logfire.instrument("list_tables")
     def list_tables(self) -> list[TableInfo]:
@@ -96,7 +58,6 @@ class DataSQLiteAgent(DataAgent):
     def run_query(self, sql: str) -> list[dict[str, object]]:
         """Execute a read-only SQLite SELECT query and return matching rows.
         Use only columns you need — never SELECT *. Single statement only."""
-        # Take only the first statement — some models generate multi-statement SQL
         sql = sql.split(";")[0].strip()
         if "limit" not in sql.lower():
             sql += " LIMIT 500"
@@ -104,3 +65,39 @@ class DataSQLiteAgent(DataAgent):
             rows = self._conn.execute(sql).fetchall()
         logfire.info("run_query result", row_count=len(rows))
         return [dict(row) for row in rows]
+
+    def init_store(self, table: str) -> None:
+        """Create a key-value JSON store table if it does not exist."""
+        table = self._safe_table(table)
+        with self._lock:
+            self._conn.execute(
+                f"CREATE TABLE IF NOT EXISTS {table} "
+                "(id TEXT PRIMARY KEY, data TEXT NOT NULL)"
+            )
+            self._conn.commit()
+
+    def upsert(self, table: str, id: str, data: str) -> None:
+        """Insert or replace a JSON record by id."""
+        table = self._safe_table(table)
+        with self._lock:
+            self._conn.execute(
+                f"INSERT OR REPLACE INTO {table} (id, data) VALUES (?, ?)",
+                (id, data),
+            )
+            self._conn.commit()
+
+    def fetch(self, table: str, id: str) -> str | None:
+        """Return the raw JSON string for the given id, or None if not found."""
+        table = self._safe_table(table)
+        with self._lock:
+            row = self._conn.execute(
+                f"SELECT data FROM {table} WHERE id = ?", (id,)
+            ).fetchone()
+        return row["data"] if row else None
+
+    def fetch_all(self, table: str) -> list[str]:
+        """Return raw JSON strings for all records in the table."""
+        table = self._safe_table(table)
+        with self._lock:
+            rows = self._conn.execute(f"SELECT data FROM {table}").fetchall()
+        return [row["data"] for row in rows]

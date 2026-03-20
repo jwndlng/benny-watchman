@@ -1,18 +1,15 @@
 """Translates natural language data requests into backend queries.
 
 Receives requests from the AnalystAgent describing what data is needed.
-Handles schema discovery, query construction, and execution against the
-configured backend. Returns structured results.
-
-DataAgent is a base class — backend-specific subclasses (DataSQLiteAgent, etc.)
-own their connection lifecycle and implement the query tools.
+Delegates all data access to a list of Engine instances — one per backend source.
+Schema from all engines is pre-loaded into the system prompt so the agent
+knows what data is available without spending tool calls on discovery.
 """
-
-from abc import abstractmethod
 
 from pydantic import BaseModel, Field
 
 from src.agents.base_agent import BaseAgent
+from src.engines.base import ColumnInfo, Engine, TableInfo
 
 
 class DataModel(BaseModel):
@@ -25,10 +22,12 @@ class DataModel(BaseModel):
 class DataAgent(BaseAgent[DataModel]):
     @property
     def instructions(self) -> str:
+        schema = "".join(e.schema_context() for e in self._engines)
         return (
             "You are a database expert. Use list_tables to discover available tables, "
             "get_schema to understand their structure, get_sample to preview data, "
             "and run_query to execute SQL queries. Always check schema before writing queries."
+            + schema
         )
 
     @property
@@ -40,29 +39,48 @@ class DataAgent(BaseAgent[DataModel]):
             "Aggregate datasets using group by as much as possible to minimize the number of rows returned",
         ]
 
-    @abstractmethod
-    def list_tables(self): ...
-
-    @abstractmethod
-    def get_schema(self, table: str): ...
-
-    @abstractmethod
-    def get_sample(self, table: str, n: int = 5): ...
-
-    @abstractmethod
-    def run_query(self, sql: str): ...
-
-    def __init__(self, model: str) -> None:
+    def __init__(self, model: str, engines: list[Engine]) -> None:
+        self._engines = (
+            engines  # must be set before super().__init__ calls self.instructions
+        )
         super().__init__(model=model, output_type=DataModel, name="DataAgent")
         self.agent.tool_plain(self.list_tables)
         self.agent.tool_plain(self.get_schema)
         self.agent.tool_plain(self.get_sample)
         self.agent.tool_plain(self.run_query)
 
+    def _engine_for(self, table: str) -> Engine:
+        """Return the first engine that contains the given table, or the primary engine."""
+        for engine in self._engines:
+            if any(t.name == table for t in engine.list_tables()):
+                return engine
+        return self._engines[0]
+
+    def list_tables(self) -> list[TableInfo]:
+        """Return all table names available across all backends."""
+        tables: list[TableInfo] = []
+        for engine in self._engines:
+            tables.extend(engine.list_tables())
+        return tables
+
+    def get_schema(self, table: str) -> list[ColumnInfo]:
+        """Return column names, types, and constraints for the given table."""
+        return self._engine_for(table).get_schema(table)
+
+    def get_sample(self, table: str, n: int = 5) -> list[dict[str, object]]:
+        """Return n sample rows from the table to understand its structure and values."""
+        return self._engine_for(table).get_sample(table, n)
+
+    def run_query(self, sql: str) -> list[dict[str, object]]:
+        """Execute a read-only SELECT query and return matching rows.
+        Use only columns you need — never SELECT *. Single statement only."""
+        return self._engines[0].run_query(sql)
+
     @classmethod
     def create(cls, engine: str, model: str, **kwargs) -> "DataAgent":
+        """Instantiate a DataAgent wired to the named backend engine."""
         if engine == "sqlite":
-            from src.agents.data_sqlite_agent import DataSQLiteAgent
+            from src.engines.sqlite import SQLiteEngine
 
-            return DataSQLiteAgent(model=model, **kwargs)
+            return cls(model=model, engines=[SQLiteEngine(kwargs["db_path"])])
         raise ValueError(f"Unknown data backend: {engine!r}")

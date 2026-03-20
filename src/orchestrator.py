@@ -1,7 +1,7 @@
 """Coordinates agent communication for the investigation pipeline."""
 
 from src.agents.analyst_agent import AnalystAgent
-from src.persistence.base import PersistenceBackend
+from src.models import InvestigationModel
 from src.runbook_registry import RunbookRegistry
 from src.schemas.alert import Alert
 from src.schemas.investigation import Investigation
@@ -11,7 +11,7 @@ class Orchestrator:
     def __init__(
         self,
         registry: RunbookRegistry,
-        persistence: PersistenceBackend,
+        persistence: InvestigationModel,
         model: str,
     ) -> None:
         self._registry = registry

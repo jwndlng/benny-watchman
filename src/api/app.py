@@ -8,8 +8,8 @@ from src.api.routes.investigations import bp as investigations_bp
 from src.api.routes.reports import bp as reports_bp
 from src.api.routes.runbooks import bp as runbooks_bp
 from src.config import config
+from src.models import ModelFactory
 from src.orchestrator import Orchestrator
-from src.persistence.factory import create_persistence
 from src.runbook_registry import RunbookRegistry
 
 
@@ -19,9 +19,7 @@ def create_app(cfg=config) -> Flask:
     registry = RunbookRegistry()
     registry.load(cfg.runbooks.path)
 
-    persistence = create_persistence(
-        cfg.persistence.engine, db_path=cfg.persistence.db_path
-    )
+    persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
     app.orchestrator = Orchestrator(registry, persistence, model=cfg.agent.model)
     app.persistence = persistence
     app.registry = registry
