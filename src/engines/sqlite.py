@@ -76,22 +76,22 @@ class SQLiteEngine(Engine):
             )
             self._conn.commit()
 
-    def upsert(self, table: str, id: str, data: str) -> None:
-        """Insert or replace a JSON record by id."""
+    def upsert(self, table: str, record_id: str, data: str) -> None:
+        """Insert or replace a JSON record by record_id."""
         table = self._safe_table(table)
         with self._lock:
             self._conn.execute(
                 f"INSERT OR REPLACE INTO {table} (id, data) VALUES (?, ?)",
-                (id, data),
+                (record_id, data),
             )
             self._conn.commit()
 
-    def fetch(self, table: str, id: str) -> str | None:
-        """Return the raw JSON string for the given id, or None if not found."""
+    def fetch(self, table: str, record_id: str) -> str | None:
+        """Return the raw JSON string for the given record_id, or None if not found."""
         table = self._safe_table(table)
         with self._lock:
             row = self._conn.execute(
-                f"SELECT data FROM {table} WHERE id = ?", (id,)
+                f"SELECT data FROM {table} WHERE id = ?", (record_id,)
             ).fetchone()
         return row["data"] if row else None
 

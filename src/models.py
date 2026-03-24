@@ -10,6 +10,7 @@ from pydantic import BaseModel as PydanticBaseModel
 
 from src.config import config
 from src.engines.base import Engine
+from src.engines.sqlite import SQLiteEngine
 from src.schemas.investigation import Investigation
 
 M = TypeVar("M", bound=PydanticBaseModel)
@@ -27,11 +28,13 @@ class BaseModel(Generic[M]):
 
     def save(self, item: M) -> None:
         """Insert or replace a record by id."""
-        self._engine.upsert(self._table, item.id, item.model_dump_json())  # type: ignore[attr-defined]
+        self._engine.upsert(  # type: ignore[attr-defined]
+            self._table, item.id, item.model_dump_json()
+        )
 
-    def get(self, id: str) -> M | None:
+    def get(self, record_id: str) -> M | None:
         """Return the record with the given id, or None if not found."""
-        data = self._engine.fetch(self._table, id)
+        data = self._engine.fetch(self._table, record_id)
         return self._model_type.model_validate_json(data) if data is not None else None
 
     def list(self) -> list[M]:
@@ -55,6 +58,4 @@ class ModelFactory:
     @staticmethod
     def investigations(db_path: str | None = None) -> InvestigationModel:
         """Return an InvestigationModel backed by the given or configured db_path."""
-        from src.engines.sqlite import SQLiteEngine
-
         return InvestigationModel(SQLiteEngine(db_path or config.persistence.db_path))
