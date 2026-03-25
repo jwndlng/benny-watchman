@@ -4,7 +4,7 @@ install:
 	uv sync --group dev
 
 test:
-	uv run pytest tests/ -v
+	uv run pytest tests/ -v -m "not e2e"
 
 test-unit:
 	uv run pytest tests/unittests/ -v
@@ -29,4 +29,5 @@ lint:
 	uv run ruff format --check src/ tests/
 
 fmt:
+	uv run ruff check --fix src/ tests/
 	uv run ruff format src/ tests/

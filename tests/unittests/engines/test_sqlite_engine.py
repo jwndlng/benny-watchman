@@ -10,7 +10,9 @@ def engine(tmp_path):
     """In-memory SQLiteEngine with a populated test table."""
     db = SQLiteEngine(str(tmp_path / "test.db"))
     conn = db._conn
-    conn.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, name TEXT NOT NULL, count INTEGER)")
+    conn.execute(
+        "CREATE TABLE events (id INTEGER PRIMARY KEY, name TEXT NOT NULL, count INTEGER)"
+    )
     conn.execute("INSERT INTO events VALUES (1, 'login', 10)")
     conn.execute("INSERT INTO events VALUES (2, 'logout', 5)")
     conn.commit()
@@ -18,6 +20,7 @@ def engine(tmp_path):
 
 
 # --- list_tables ---
+
 
 def test_list_tables_returns_table(engine):
     names = [t.name for t in engine.list_tables()]
@@ -30,6 +33,7 @@ def test_list_tables_empty_db(tmp_path):
 
 
 # --- get_schema ---
+
 
 def test_get_schema_columns(engine):
     cols = {c.name: c for c in engine.get_schema("events")}
@@ -44,6 +48,7 @@ def test_get_schema_invalid_table_raises(engine):
 
 
 # --- get_sample ---
+
 
 def test_get_sample_returns_rows(engine):
     rows = engine.get_sample("events", n=2)
@@ -62,6 +67,7 @@ def test_get_sample_invalid_table_raises(engine):
 
 
 # --- run_query ---
+
 
 def test_run_query_filters(engine):
     rows = engine.run_query("SELECT name, count FROM events WHERE count > 7")
@@ -83,6 +89,7 @@ def test_run_query_strips_second_statement(engine):
 
 
 # --- key-value store ---
+
 
 def test_init_store_creates_table(tmp_path):
     db = SQLiteEngine(str(tmp_path / "kv.db"))
@@ -134,6 +141,7 @@ def test_fetch_all_empty(tmp_path):
 
 
 # --- schema_context ---
+
 
 def test_schema_context_contains_table_and_columns(engine):
     ctx = engine.schema_context()

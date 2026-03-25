@@ -214,3 +214,6 @@ tests/harness/data/
 
 # Pydantic AI Logfire
 .logfire/
+
+# Claude
+.claude/settings.json

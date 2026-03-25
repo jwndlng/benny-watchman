@@ -31,6 +31,7 @@ def model(tmp_path):
 
 # --- save / get ---
 
+
 def test_save_and_get_roundtrip(model):
     inv = make_investigation()
     model.save(inv)
@@ -56,6 +57,7 @@ def test_save_overwrites_existing(model):
 
 # --- list ---
 
+
 def test_list_empty(model):
     assert model.list() == []
 
@@ -76,6 +78,7 @@ def test_list_preserves_data(model):
 
 
 # --- isolation ---
+
 
 def test_separate_instances_share_data(tmp_path):
     """Two models backed by the same db_path see the same data."""
