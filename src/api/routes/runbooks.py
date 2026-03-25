@@ -1,23 +1,24 @@
 """GET /runbooks — list runbooks and retrieve by name."""
 
-from flask import Blueprint, Response, jsonify, current_app
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
-bp = Blueprint("runbooks", __name__)
+router = APIRouter()
 
 
-@bp.get("/runbooks")
-def list_runbooks() -> tuple[Response, int]:
+@router.get("/runbooks")
+def list_runbooks(request: Request) -> JSONResponse:
     """Return all loaded runbooks."""
-    runbooks = current_app.registry.list()
-    return jsonify(
+    runbooks = request.app.state.registry.list()
+    return JSONResponse(
         [{"name": r.name, "description": r.description} for r in runbooks]
-    ), 200
+    )
 
 
-@bp.get("/runbooks/<runbook_name>")
-def get_runbook(runbook_name: str) -> tuple[Response, int]:
+@router.get("/runbooks/{runbook_name}")
+def get_runbook(runbook_name: str, request: Request) -> JSONResponse:
     """Return a single runbook by name."""
-    runbook = current_app.registry.get(runbook_name)
+    runbook = request.app.state.registry.get(runbook_name)
     if runbook is None:
-        return jsonify({"error": "Not found"}), 404
-    return jsonify(runbook.model_dump()), 200
+        return JSONResponse({"error": "Not found"}, status_code=404)
+    return JSONResponse(runbook.model_dump())

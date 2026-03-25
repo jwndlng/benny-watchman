@@ -3,9 +3,9 @@
 import logfire
 
 
-def setup_observability(flask_app: object = None) -> None:
-    """Configure Logfire instrumentation for PydanticAI and optionally Flask."""
+def setup_observability(fastapi_app: object = None) -> None:
+    """Configure Logfire instrumentation for PydanticAI and optionally FastAPI."""
     logfire.configure(distributed_tracing=True)
     logfire.instrument_pydantic_ai()
-    if flask_app is not None:
-        logfire.instrument_flask(flask_app)
+    if fastapi_app is not None:
+        logfire.instrument_fastapi(fastapi_app)

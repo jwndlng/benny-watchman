@@ -3,11 +3,12 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
+from fastapi.testclient import TestClient
 
-from tests.harness.seeder.synthetic_db import SyntheticDataset
 from src.api.app import create_app
 from src.schemas.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
+from tests.harness.seeder.synthetic_db import SyntheticDataset
 
 
 def _stub_investigation(alert_id: str, runbook_name: str) -> Investigation:
@@ -69,10 +70,9 @@ def client(tmp_path):
         data = _Data()
 
     app = create_app(cfg=_Config())
-    app.config["TESTING"] = True
-    with app.test_client() as client:
-        with patch("src.orchestrator.AnalystAgent") as mock_cls:
-            mock_cls.return_value.investigate.side_effect = lambda alert: (
-                _stub_investigation(alert.id, "generic")
-            )
+    with patch("src.orchestrator.AnalystAgent") as mock_cls:
+        mock_cls.return_value.investigate.side_effect = lambda alert: (
+            _stub_investigation(alert.id, "generic")
+        )
+        with TestClient(app) as client:
             yield client

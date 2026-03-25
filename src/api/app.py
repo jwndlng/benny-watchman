@@ -1,33 +1,42 @@
-"""Flask application factory."""
+"""FastAPI application factory."""
 
-from flask import Flask
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
-from src.api.routes.hunt import bp as hunt_bp
-from src.api.routes.investigate import bp as investigate_bp
-from src.api.routes.investigations import bp as investigations_bp
-from src.api.routes.reports import bp as reports_bp
-from src.api.routes.runbooks import bp as runbooks_bp
+from fastapi import FastAPI
+
+from src.api.routes.hunt import router as hunt_router
+from src.api.routes.investigate import router as investigate_router
+from src.api.routes.investigations import router as investigations_router
+from src.api.routes.reports import router as reports_router
+from src.api.routes.runbooks import router as runbooks_router
 from src.config import Config, config
 from src.models import ModelFactory
 from src.orchestrator import Orchestrator
 from src.runbook_registry import RunbookRegistry
 
 
-def create_app(cfg: Config = config) -> Flask:
-    """Create and configure the Flask application."""
-    app = Flask(__name__)
+def create_app(cfg: Config = config) -> FastAPI:
+    """Create and configure the FastAPI application."""
 
-    registry = RunbookRegistry()
-    registry.load(cfg.runbooks.path)
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        """Initialise shared state on startup."""
+        registry = RunbookRegistry()
+        registry.load(cfg.runbooks.path)
 
-    persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
-    app.orchestrator = Orchestrator(registry, persistence, model=cfg.agent.model)
-    app.persistence = persistence
-    app.registry = registry
+        persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
+        app.state.orchestrator = Orchestrator(
+            registry, persistence, model=cfg.agent.model
+        )
+        app.state.persistence = persistence
+        app.state.registry = registry
+        yield
 
-    app.register_blueprint(investigate_bp)
-    app.register_blueprint(investigations_bp)
-    app.register_blueprint(reports_bp)
-    app.register_blueprint(runbooks_bp)
-    app.register_blueprint(hunt_bp)
+    app = FastAPI(title="Benny Watchman", lifespan=lifespan)
+    app.include_router(investigate_router)
+    app.include_router(investigations_router)
+    app.include_router(reports_router)
+    app.include_router(runbooks_router)
+    app.include_router(hunt_router)
     return app

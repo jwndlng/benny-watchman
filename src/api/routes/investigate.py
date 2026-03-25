@@ -1,26 +1,22 @@
 """POST /investigate — submit an alert, returns an Investigation."""
 
-from flask import Blueprint, Response, request, jsonify, current_app
-from pydantic import ValidationError
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
+
 from src.api.schemas.investigate_request import InvestigateRequest
 from src.schemas.alert import Alert
 
-bp = Blueprint("investigate", __name__)
+router = APIRouter()
 
 
-@bp.post("/investigate")
-def investigate() -> tuple[Response, int]:
+@router.post("/investigate", status_code=202)
+def investigate(body: InvestigateRequest, request: Request) -> JSONResponse:
     """Submit an alert for investigation and return the resulting Investigation."""
-    try:
-        body = InvestigateRequest.model_validate(request.get_json())
-    except ValidationError as e:
-        return jsonify({"error": e.errors()}), 400
-
     alert = Alert(**body.model_dump())
-    investigation = current_app.orchestrator.investigate(alert)
+    investigation = request.app.state.orchestrator.investigate(alert)
     if investigation is None:
-        return jsonify(
-            {"error": "No matching runbook found. Manual review required."}
-        ), 422
-
-    return jsonify(investigation.model_dump(mode="json")), 202
+        return JSONResponse(
+            {"error": "No matching runbook found. Manual review required."},
+            status_code=422,
+        )
+    return JSONResponse(investigation.model_dump(mode="json"), status_code=202)

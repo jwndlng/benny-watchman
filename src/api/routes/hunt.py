@@ -1,11 +1,12 @@
 """POST /hunt — trigger an interactive threat hunting session (post-MVP)."""
 
-from flask import Blueprint, Response, jsonify
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
-bp = Blueprint("hunt", __name__)
+router = APIRouter()
 
 
-@bp.post("/hunt")
-def hunt() -> tuple[Response, int]:
+@router.post("/hunt", status_code=501)
+def hunt() -> JSONResponse:
     """Trigger an interactive threat hunting session (post-MVP)."""
-    return jsonify({"error": "Not implemented"}), 501
+    return JSONResponse({"error": "Not implemented"}, status_code=501)

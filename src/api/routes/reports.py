@@ -1,24 +1,25 @@
 """GET /reports — list reports and retrieve by investigation id."""
 
-from flask import Blueprint, Response, jsonify, current_app
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
-bp = Blueprint("reports", __name__)
+router = APIRouter()
 
 
-@bp.get("/reports")
-def list_reports() -> tuple[Response, int]:
+@router.get("/reports")
+def list_reports(request: Request) -> JSONResponse:
     """Return all incident reports."""
-    investigations = current_app.persistence.list()
+    investigations = request.app.state.persistence.list()
     reports = [
         i.report.model_dump(mode="json") for i in investigations if i.report is not None
     ]
-    return jsonify(reports), 200
+    return JSONResponse(reports)
 
 
-@bp.get("/reports/<investigation_id>")
-def get_report(investigation_id: str) -> tuple[Response, int]:
+@router.get("/reports/{investigation_id}")
+def get_report(investigation_id: str, request: Request) -> JSONResponse:
     """Return the incident report for a given investigation ID."""
-    investigation = current_app.persistence.get(investigation_id)
+    investigation = request.app.state.persistence.get(investigation_id)
     if investigation is None or investigation.report is None:
-        return jsonify({"error": "Not found"}), 404
-    return jsonify(investigation.report.model_dump(mode="json")), 200
+        return JSONResponse({"error": "Not found"}, status_code=404)
+    return JSONResponse(investigation.report.model_dump(mode="json"))

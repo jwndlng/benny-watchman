@@ -1,21 +1,22 @@
 """GET /investigations — list investigations and retrieve by id."""
 
-from flask import Blueprint, Response, jsonify, current_app
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
-bp = Blueprint("investigations", __name__)
+router = APIRouter()
 
 
-@bp.get("/investigations")
-def list_investigations() -> tuple[Response, int]:
+@router.get("/investigations")
+def list_investigations(request: Request) -> JSONResponse:
     """Return all investigations."""
-    investigations = current_app.persistence.list()
-    return jsonify([i.model_dump(mode="json") for i in investigations]), 200
+    investigations = request.app.state.persistence.list()
+    return JSONResponse([i.model_dump(mode="json") for i in investigations])
 
 
-@bp.get("/investigations/<investigation_id>")
-def get_investigation(investigation_id: str) -> tuple[Response, int]:
+@router.get("/investigations/{investigation_id}")
+def get_investigation(investigation_id: str, request: Request) -> JSONResponse:
     """Return a single investigation by ID."""
-    investigation = current_app.persistence.get(investigation_id)
+    investigation = request.app.state.persistence.get(investigation_id)
     if investigation is None:
-        return jsonify({"error": "Not found"}), 404
-    return jsonify(investigation.model_dump(mode="json")), 200
+        return JSONResponse({"error": "Not found"}, status_code=404)
+    return JSONResponse(investigation.model_dump(mode="json"))
