@@ -43,7 +43,9 @@ class BaseCase(ABC):
                     f"No runbook found for '{self.runbook_name}' and no 'generic' fallback."
                 )
 
-            data_agent = SQLiteDataAgent(name="security_logs", model=model, db_path=db_path)
+            data_agent = SQLiteDataAgent(
+                name="security_logs", model=model, db_path=db_path
+            )
             asyncio.run(data_agent.initialize())
 
             agent = AnalystAgent(model=model, runbook=runbook, data_agents=[data_agent])

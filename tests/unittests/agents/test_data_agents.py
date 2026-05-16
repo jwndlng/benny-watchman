@@ -11,6 +11,7 @@ from src.runbook_registry import Runbook
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_runbook() -> Runbook:
     return Runbook(name="generic", description="test", instructions="Investigate.")
 
@@ -25,6 +26,7 @@ def _initialized_agent(db_path: str, name: str = "test_source") -> SQLiteDataAge
 # ---------------------------------------------------------------------------
 # BaseDataAgent: uninitialized guard
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.anyio
 async def test_run_before_initialize_raises(seeded_db):
@@ -43,6 +45,7 @@ def test_routing_description_before_initialize_raises(seeded_db):
 # SQLiteDataAgent: initialize() builds routing_description
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.anyio
 async def test_initialize_builds_routing_description(seeded_db):
     agent = SQLiteDataAgent(name="test_source", model=TestModel(), db_path=seeded_db)
@@ -54,6 +57,7 @@ async def test_initialize_builds_routing_description(seeded_db):
 # ---------------------------------------------------------------------------
 # AnalystAgent: dynamic tool registration
 # ---------------------------------------------------------------------------
+
 
 def test_single_data_agent_registers_query_tool(seeded_db):
     from src.agents.analyst_agent import AnalystAgent
@@ -89,6 +93,7 @@ def test_multiple_data_agents_register_separate_tools(seeded_db, tmp_path):
 # ---------------------------------------------------------------------------
 # AnalystAgent: duplicate name rejection
 # ---------------------------------------------------------------------------
+
 
 def test_duplicate_data_agent_names_raise(seeded_db):
     from src.agents.analyst_agent import AnalystAgent

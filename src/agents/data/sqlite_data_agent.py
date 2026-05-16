@@ -48,7 +48,9 @@ class SQLiteDataAgent(BaseDataAgent):
         """Introspect the SQLite DB and build a compact routing description."""
         tables = self._engine.list_tables()
         if not tables:
-            self._routing_description = f"SQLite source '{self._name}': no tables found."
+            self._routing_description = (
+                f"SQLite source '{self._name}': no tables found."
+            )
             return
         parts: list[str] = [f"SQLite data source '{self._name}'."]
         for table in tables:

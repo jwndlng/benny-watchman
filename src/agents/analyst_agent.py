@@ -106,7 +106,9 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         runbook: Runbook,
         data_agents: list[BaseDataAgent],
     ) -> None:
-        self._runbook = runbook  # must be set before super().__init__ calls self.instructions
+        self._runbook = (
+            runbook  # must be set before super().__init__ calls self.instructions
+        )
         names = [a.name for a in data_agents]
         if len(names) != len(set(names)):
             duplicates = {n for n in names if names.count(n) > 1}
