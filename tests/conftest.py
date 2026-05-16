@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -62,6 +62,7 @@ def client(tmp_path):
 
     class _Data:
         db_path = str(tmp_path / "data.db")
+        name = "security_logs"
 
     class _Config:
         persistence = _Persistence()
@@ -70,9 +71,14 @@ def client(tmp_path):
         data = _Data()
 
     app = create_app(cfg=_Config())
-    with patch("src.orchestrator.AnalystAgent") as mock_cls:
-        mock_cls.return_value.investigate.side_effect = lambda alert: (
-            _stub_investigation(alert.id, "generic")
-        )
-        with TestClient(app) as client:
-            yield client
+    mock_data_agent = MagicMock()
+    mock_data_agent.name = "security_logs"
+    mock_data_agent.routing_description = "Mock data source for tests."
+    mock_data_agent.initialize = AsyncMock()
+    with patch("src.api.app.SQLiteDataAgent", return_value=mock_data_agent):
+        with patch("src.orchestrator.AnalystAgent") as mock_cls:
+            mock_cls.return_value.investigate.side_effect = lambda alert: (
+                _stub_investigation(alert.id, "generic")
+            )
+            with TestClient(app) as client:
+                yield client

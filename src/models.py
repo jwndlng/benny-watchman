@@ -9,7 +9,6 @@ from typing import Generic, TypeVar
 from pydantic import BaseModel as PydanticBaseModel
 
 from src.config import config
-from src.engines.base import Engine
 from src.engines.sqlite import SQLiteEngine
 from src.schemas.investigation import Investigation
 
@@ -22,7 +21,7 @@ class BaseModel(Generic[M]):
     _model_type: type[M]
     _table: str
 
-    def __init__(self, engine: Engine) -> None:
+    def __init__(self, engine: SQLiteEngine) -> None:
         self._engine = engine
         self._engine.init_store(self._table)
 

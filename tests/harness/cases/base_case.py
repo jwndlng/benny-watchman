@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import tempfile
 import traceback
 from abc import ABC, abstractmethod
 
 from src.agents.analyst_agent import AnalystAgent
+from src.agents.data.sqlite_data_agent import SQLiteDataAgent
 from src.runbook_registry import RunbookRegistry
 from src.schemas.alert import Alert
 from src.schemas.incident_report import Severity, Verdict
@@ -41,7 +43,10 @@ class BaseCase(ABC):
                     f"No runbook found for '{self.runbook_name}' and no 'generic' fallback."
                 )
 
-            agent = AnalystAgent(model=model, runbook=runbook, db_path=db_path)
+            data_agent = SQLiteDataAgent(name="security_logs", model=model, db_path=db_path)
+            asyncio.run(data_agent.initialize())
+
+            agent = AnalystAgent(model=model, runbook=runbook, data_agents=[data_agent])
             investigation = agent.investigate(self.alert())
             report = investigation.report
 

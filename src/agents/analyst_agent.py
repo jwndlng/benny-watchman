@@ -1,23 +1,44 @@
 """Autonomously investigates alerts using a data sufficiency loop.
 
-Bootstrapped by the Router with a Runbook (system prompt + scoped tool set).
-Delegates data retrieval to DataAgent via the query_data tool.
-Iterates until confident in a conclusion or the tool call limit is reached.
+Bootstrapped by the Orchestrator with a Runbook and a list of pre-initialized
+DataAgents. Delegates data retrieval to DataAgents via dynamically registered
+query tools, one per source. Iterates until confident in a conclusion or the
+tool call limit is reached.
 """
 
 import uuid
+from collections.abc import Callable
 from datetime import date, datetime, timezone
 
 import logfire
 from pydantic import BaseModel, Field
+from pydantic_ai import AgentRunResult
 
 from src.agents.base_agent import BaseAgent
-from src.agents.data_agent import DataAgent, DataModel
-from src.config import config
+from src.agents.data.base_data_agent import BaseDataAgent, DataModel
 from src.runbook_registry import Runbook
 from src.schemas.alert import Alert
 from src.schemas.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
+
+
+def _make_query_tool(data_agent: BaseDataAgent) -> Callable:
+    """Create a named async tool function that delegates to the given DataAgent.
+
+    The function name becomes the PydanticAI tool name (query_{agent.name})
+    and the docstring becomes the tool description seen by the LLM.
+    This factory is the deliberate exception to the no-closures rule — dynamic
+    tool names cannot be expressed as fixed methods on AnalystAgent.
+    """
+
+    async def query_fn(request: str) -> DataModel:
+        with logfire.span(f"query_{data_agent.name}", request=request):
+            result: AgentRunResult[DataModel] = await data_agent.run(request)
+            return result.output
+
+    query_fn.__name__ = f"query_{data_agent.name}"
+    query_fn.__doc__ = data_agent.routing_description
+    return query_fn
 
 
 class UserProfile(BaseModel):
@@ -74,41 +95,37 @@ class AnalystAgent(BaseAgent[AnalystModel]):
     @property
     def constraints(self) -> list[str]:
         return [
-            "Call query_data at most 2 times total",
+            "Call each data source tool at most 2 times",
             "Issue one query at a time — not multiple in parallel",
             "Stop querying as soon as you have sufficient evidence to reach a verdict",
         ]
 
     def __init__(
-        self, model: str, runbook: Runbook, db_path: str | None = None
+        self,
+        model: str,
+        runbook: Runbook,
+        data_agents: list[BaseDataAgent],
     ) -> None:
-        self._runbook = (
-            runbook  # must be set before super().__init__ calls self.instructions
-        )
-        self._data_agent: DataAgent = DataAgent.create(
-            engine=config.data.engine,
-            model=model,
-            db_path=db_path or config.data.db_path,
-        )
+        self._runbook = runbook  # must be set before super().__init__ calls self.instructions
+        names = [a.name for a in data_agents]
+        if len(names) != len(set(names)):
+            duplicates = {n for n in names if names.count(n) > 1}
+            raise ValueError(f"Duplicate DataAgent names: {duplicates}")
+        self._data_agents = data_agents
         super().__init__(
             model=model,
             output_type=AnalystModel,
             name=f"AnalystAgent({runbook.name})",
         )
-        self.agent.tool_plain(self.query_data)
+        for agent in data_agents:
+            self.agent.tool_plain(_make_query_tool(agent))
         self.agent.tool_plain(self.lookup_user)
-
-    async def query_data(self, request: str) -> DataModel:
-        """Fetch data from the security log database. Describe what you need in plain English."""
-        with logfire.span("query_data", request=request):
-            result = await self._data_agent.run(request)
-            return result.output
 
     def lookup_user(self, username: str) -> UserProfile:
         """Look up identity, role, and availability context for a given user.
         Returns employment status, tenure, location, and access level.
         Use this to assess whether activity is expected for this user's role and context."""
-        # TODO: wire up to HR / identity provider
+        # TODO: wire up to Okta IDP (see change: add-okta-idp)
         return UserProfile(
             name=username,
             email=f"{username}@example.com",

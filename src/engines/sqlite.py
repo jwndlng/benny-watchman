@@ -6,10 +6,10 @@ import threading
 
 import logfire
 
-from src.engines.base import ColumnInfo, Engine, TableInfo
+from src.engines.base import ColumnInfo, QueryEngine, TableInfo
 
 
-class SQLiteEngine(Engine):
+class SQLiteEngine(QueryEngine):
     def __init__(self, db_path: str) -> None:
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row

@@ -5,6 +5,7 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 
+from src.agents.data.sqlite_data_agent import SQLiteDataAgent
 from src.api.routes.hunt import router as hunt_router
 from src.api.routes.investigate import router as investigate_router
 from src.api.routes.investigations import router as investigations_router
@@ -25,9 +26,19 @@ def create_app(cfg: Config = config) -> FastAPI:
         registry = RunbookRegistry()
         registry.load(cfg.runbooks.path)
 
+        data_agent = SQLiteDataAgent(
+            name=cfg.data.name,
+            model=cfg.agent.model,
+            db_path=cfg.data.db_path,
+        )
+        await data_agent.initialize()
+
         persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
         app.state.orchestrator = Orchestrator(
-            registry, persistence, model=cfg.agent.model
+            registry,
+            persistence,
+            model=cfg.agent.model,
+            data_agents=[data_agent],
         )
         app.state.persistence = persistence
         app.state.registry = registry

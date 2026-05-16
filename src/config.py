@@ -47,6 +47,7 @@ class _DataConfig:
 
     engine: str = os.environ.get("DATA_BACKEND_ENGINE", "sqlite")
     db_path: str = os.environ.get("DATA_BACKEND_DB_PATH", "data.db")
+    name: str = os.environ.get("DATA_AGENT_NAME", "security_logs")
 
 
 class Config:

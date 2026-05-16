@@ -1,4 +1,4 @@
-"""Engine ABC — common interface for all query backends."""
+"""QueryEngine ABC — query-only interface for all data backends."""
 
 from abc import ABC, abstractmethod
 
@@ -15,13 +15,17 @@ class ColumnInfo(BaseModel):
     """Metadata for a single column in a table."""
 
     name: str = Field(description="Column name")
-    type: str = Field(description="SQLite type affinity (e.g. TEXT, INTEGER, REAL)")
+    type: str = Field(description="Column type (e.g. TEXT, INTEGER, keyword, date)")
     notnull: bool = Field(description="True if the column has a NOT NULL constraint")
     pk: bool = Field(description="True if the column is part of the primary key")
 
 
-class Engine(ABC):
-    """Common interface for query backends (SQLite, ClickHouse, etc.)."""
+class QueryEngine(ABC):
+    """Query-only interface for data backends (SQLite, Elasticsearch, ClickHouse, etc.).
+
+    Persistence (init_store, upsert, fetch, fetch_all) is not part of this contract
+    and lives on SQLiteEngine directly for use by the models layer.
+    """
 
     @abstractmethod
     def list_tables(self) -> list[TableInfo]:
@@ -39,26 +43,6 @@ class Engine(ABC):
     def run_query(self, sql: str) -> list[dict[str, object]]:
         """Execute a read-only query and return matching rows.
         Use only columns you need — never SELECT *. Single statement only."""
-
-    # --- JSON key-value store (used by DatabaseModel for persistence) ---
-
-    @abstractmethod
-    def init_store(self, table: str) -> None:
-        """Create a key-value JSON store table if it does not exist."""
-
-    @abstractmethod
-    def upsert(self, table: str, record_id: str, data: str) -> None:
-        """Insert or replace a JSON record by record_id."""
-
-    @abstractmethod
-    def fetch(self, table: str, record_id: str) -> str | None:
-        """Return the raw JSON string for the given record_id, or None if not found."""
-
-    @abstractmethod
-    def fetch_all(self, table: str) -> list[str]:
-        """Return raw JSON strings for all records in the table."""
-
-    # --- Schema introspection helpers ---
 
     def schema_context(self) -> str:
         """Return a formatted schema summary suitable for injection into a system prompt."""
