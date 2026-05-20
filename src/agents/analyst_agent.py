@@ -6,9 +6,12 @@ query tools, one per source. Iterates until confident in a conclusion or the
 tool call limit is reached.
 """
 
+from __future__ import annotations
+
 import uuid
 from collections.abc import Callable
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 import logfire
 from pydantic import BaseModel, Field
@@ -20,6 +23,10 @@ from src.runbook_registry import Runbook
 from src.schemas.alert import Alert
 from src.schemas.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
+from src.schemas.user_profile import UserProfile
+
+if TYPE_CHECKING:
+    from src.integrations.okta import OktaClient
 
 
 def _make_query_tool(data_agent: BaseDataAgent) -> Callable:
@@ -39,27 +46,6 @@ def _make_query_tool(data_agent: BaseDataAgent) -> Callable:
     query_fn.__name__ = f"query_{data_agent.name}"
     query_fn.__doc__ = data_agent.routing_description
     return query_fn
-
-
-class UserProfile(BaseModel):
-    """Identity and employment context returned by the lookup_user tool."""
-
-    name: str = Field(description="Full name")
-    email: str = Field(description="Work email")
-    team: str = Field(description="Team or department")
-    role: str = Field(description="Job title / role")
-    manager: str = Field(description="Direct manager")
-    employment_status: str = Field(description="active | on_leave | terminated")
-    start_date: date = Field(description="Employment start date")
-    termination_date: date | None = Field(
-        description="Scheduled termination date if known"
-    )
-    tenure_days: int = Field(description="Number of days employed as of today")
-    work_location: str = Field(description="Primary office location or 'remote'")
-    timezone: str = Field(description="Work timezone")
-    on_call: bool = Field(description="Currently on call")
-    out_of_office: bool = Field(description="Currently OOO")
-    access_level: str = Field(description="Expected privilege level for this role")
 
 
 class AnalystModel(BaseModel):
@@ -105,6 +91,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         model: str,
         runbook: Runbook,
         data_agents: list[BaseDataAgent],
+        okta_client: OktaClient | None = None,
     ) -> None:
         self._runbook = (
             runbook  # must be set before super().__init__ calls self.instructions
@@ -114,6 +101,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
             duplicates = {n for n in names if names.count(n) > 1}
             raise ValueError(f"Duplicate DataAgent names: {duplicates}")
         self._data_agents = data_agents
+        self._okta_client = okta_client
         super().__init__(
             model=model,
             output_type=AnalystModel,
@@ -123,27 +111,14 @@ class AnalystAgent(BaseAgent[AnalystModel]):
             self.agent.tool_plain(_make_query_tool(agent))
         self.agent.tool_plain(self.lookup_user)
 
-    def lookup_user(self, username: str) -> UserProfile:
+    async def lookup_user(self, username: str) -> UserProfile | None:
         """Look up identity, role, and availability context for a given user.
         Returns employment status, tenure, location, and access level.
-        Use this to assess whether activity is expected for this user's role and context."""
-        # TODO: wire up to Okta IDP (see change: add-okta-idp)
-        return UserProfile(
-            name=username,
-            email=f"{username}@example.com",
-            team="unknown",
-            role="unknown",
-            manager="unknown",
-            employment_status="active",
-            start_date=date(2020, 1, 1),
-            termination_date=None,
-            tenure_days=0,
-            work_location="unknown",
-            timezone="UTC",
-            on_call=False,
-            out_of_office=False,
-            access_level="unknown",
-        )
+        Use this to assess whether activity is expected for this user's role and context.
+        Returns None if identity context is unavailable."""
+        if self._okta_client is not None:
+            return await self._okta_client.get_user(username)
+        return None
 
     def investigate(self, alert: Alert) -> Investigation:
         result = self.run_sync(

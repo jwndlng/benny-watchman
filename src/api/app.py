@@ -12,6 +12,7 @@ from src.api.routes.investigations import router as investigations_router
 from src.api.routes.reports import router as reports_router
 from src.api.routes.runbooks import router as runbooks_router
 from src.config import Config, config
+from src.integrations.okta import OktaClient
 from src.models import ModelFactory
 from src.orchestrator import Orchestrator
 from src.runbook_registry import RunbookRegistry
@@ -33,12 +34,23 @@ def create_app(cfg: Config = config) -> FastAPI:
         )
         await data_agent.initialize()
 
+        okta_client = (
+            OktaClient(
+                org_url=cfg.okta.domain,
+                client_id=cfg.okta.client_id,
+                private_key_b64=cfg.okta.private_key_b64,
+            )
+            if cfg.okta is not None
+            else None
+        )
+
         persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
         app.state.orchestrator = Orchestrator(
             registry,
             persistence,
             model=cfg.agent.model,
             data_agents=[data_agent],
+            okta_client=okta_client,
         )
         app.state.persistence = persistence
         app.state.registry = registry

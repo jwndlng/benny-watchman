@@ -69,6 +69,7 @@ def client(tmp_path):
         runbooks = _Runbooks()
         agent = _Agent()
         data = _Data()
+        okta = None
 
     app = create_app(cfg=_Config())
     mock_data_agent = MagicMock()

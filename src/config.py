@@ -50,6 +50,26 @@ class _DataConfig:
     name: str = os.environ.get("DATA_AGENT_NAME", "security_logs")
 
 
+class _OktaConfig:
+    """Okta IDP integration settings — JWT private key authentication."""
+
+    def __init__(self, domain: str, client_id: str, private_key_b64: str) -> None:
+        self.domain = domain
+        self.client_id = client_id
+        self.private_key_b64 = private_key_b64
+
+
+def _load_okta_config() -> "_OktaConfig | None":
+    domain = os.environ.get("OKTA_DOMAIN", "")
+    client_id = os.environ.get("OKTA_CLIENT_ID", "")
+    private_key_b64 = os.environ.get("OKTA_PRIVATE_KEY", "")
+    if not domain or not client_id or not private_key_b64:
+        return None
+    return _OktaConfig(
+        domain=domain, client_id=client_id, private_key_b64=private_key_b64
+    )
+
+
 class Config:
     """Top-level application configuration assembled from environment variables."""
 
@@ -57,6 +77,7 @@ class Config:
     runbooks = _RunbooksConfig()
     agent = _AgentConfig()
     data = _DataConfig()
+    okta: "_OktaConfig | None" = _load_okta_config()
 
 
 config = Config()
