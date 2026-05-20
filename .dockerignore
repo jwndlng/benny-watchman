@@ -1,0 +1,10 @@
+.venv
+__pycache__
+.git
+*.db
+.env
+openspec/
+tests/
+.ruff_cache/
+.logfire/
+.claude/

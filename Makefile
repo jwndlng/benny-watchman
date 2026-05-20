@@ -1,4 +1,4 @@
-.PHONY: install test test-unit test-integration test-e2e seed-db harness run lint fmt
+.PHONY: install test test-unit test-integration test-e2e seed-db harness run lint fmt dev-up dev-down
 
 install:
 	uv sync --group dev
@@ -31,3 +31,9 @@ lint:
 fmt:
 	uv run ruff check --fix src/ tests/
 	uv run ruff format src/ tests/
+
+dev-up:
+	docker-compose up --build
+
+dev-down:
+	docker-compose down
