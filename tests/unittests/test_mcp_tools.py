@@ -41,7 +41,9 @@ def mcp_instance() -> FastMCP:
 
 @pytest.mark.anyio
 async def test_list_runbooks_returns_json_array(mcp_instance):
-    registry = _make_registry(("brute-force", "Detects brute force"), ("generic", "Fallback"))
+    registry = _make_registry(
+        ("brute-force", "Detects brute force"), ("generic", "Fallback")
+    )
     register_tools(mcp_instance, [], registry)
 
     result = await mcp_instance.call_tool("list_runbooks", {})
@@ -63,7 +65,9 @@ async def test_list_runbooks_empty_registry(mcp_instance):
 
 @pytest.mark.anyio
 async def test_lookup_data_returns_rows(mcp_instance):
-    agent = _make_agent("elastic", [{"user": "alice", "count": 5}], notes="queried last 1h")
+    agent = _make_agent(
+        "elastic", [{"user": "alice", "count": 5}], notes="queried last 1h"
+    )
     register_tools(mcp_instance, [agent], _make_registry())
 
     result = await mcp_instance.call_tool("lookup_data", {"query": "failed logins"})

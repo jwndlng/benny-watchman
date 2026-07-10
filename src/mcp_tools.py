@@ -49,6 +49,7 @@ def register_tools(
           "show me the 5 most recent events for user alice"
           "count authentication events by source IP in the last 24 hours"
         """
+
         async def _run_agent(agent: BaseDataAgent) -> dict:
             try:
                 result = await agent.run(query)
