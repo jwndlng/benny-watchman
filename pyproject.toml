@@ -11,8 +11,9 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.14"
 dependencies = [
+    "elasticsearch>=8.0",
     "fastapi>=0.135.2",
-    "logfire[pydantic-ai]>=4.28.0",
+    "logfire[pydantic-ai,fastapi]>=4.28.0",
     "okta>=2.9.7",
     "pydantic-ai[all]>=0.8.1",
     "uvicorn>=0.41.0",

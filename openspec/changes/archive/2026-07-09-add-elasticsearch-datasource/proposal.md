@@ -5,8 +5,8 @@ The system currently supports only SQLite as a query backend. To operate against
 ## What Changes
 
 - `ElasticsearchEngine` implements `QueryEngine`:
-  - `list_tables()` fetches Kibana data views via the Kibana API (not raw index listing) — returns one entry per data view, avoiding time-sharded index explosion
-  - `get_schema()` returns field mappings from the data view's field listing
+  - `list_tables()` lists indices directly via the ES `_cat/indices` API
+  - `get_schema()` returns field mappings from the index mapping
   - `get_sample()` returns a small number of real documents via ES|QL
   - `run_query()` executes ES|QL queries via the Elasticsearch ES|QL endpoint
   - No persistence methods — persistence stays on SQLite
@@ -14,9 +14,9 @@ The system currently supports only SQLite as a query backend. To operate against
   - Hardcodes `ElasticsearchEngine`
   - Instructions include ES|QL syntax guidance (pipe syntax, date math, no subqueries)
   - Constraints tuned for Elasticsearch cost profile
-  - `initialize()` introspects data views and builds a routing description with field names and one sample event per data view
-- Config additions: `ELASTIC_HOST`, `KIBANA_HOST`, `ELASTIC_API_KEY`
-- Startup health check: `initialize()` fails fast if Elasticsearch or Kibana is unreachable
+  - `initialize()` introspects indices and builds a routing description with field names and one sample event per index group
+- Config additions: `ELASTIC_HOST`, `ELASTIC_API_KEY`, optional `ELASTIC_INDEX_PATTERN` (glob filter, e.g. `logs-*`)
+- Startup health check: `initialize()` fails fast if Elasticsearch is unreachable
 
 ## Capabilities
 

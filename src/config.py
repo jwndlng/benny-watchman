@@ -59,6 +59,24 @@ class _OktaConfig:
         self.private_key_b64 = private_key_b64
 
 
+class _ElasticConfig:
+    """Elasticsearch data backend settings."""
+
+    def __init__(self, host: str, api_key: str, index_pattern: str | None) -> None:
+        self.host = host
+        self.api_key = api_key
+        self.index_pattern = index_pattern
+
+
+def _load_elastic_config() -> "_ElasticConfig | None":
+    host = os.environ.get("ELASTIC_HOST", "")
+    api_key = os.environ.get("ELASTIC_API_KEY", "")
+    if not host or not api_key:
+        return None
+    index_pattern = os.environ.get("ELASTIC_INDEX_PATTERN") or None
+    return _ElasticConfig(host=host, api_key=api_key, index_pattern=index_pattern)
+
+
 def _load_okta_config() -> "_OktaConfig | None":
     domain = os.environ.get("OKTA_DOMAIN", "")
     client_id = os.environ.get("OKTA_CLIENT_ID", "")
@@ -77,6 +95,7 @@ class Config:
     runbooks = _RunbooksConfig()
     agent = _AgentConfig()
     data = _DataConfig()
+    elastic: "_ElasticConfig | None" = _load_elastic_config()
     okta: "_OktaConfig | None" = _load_okta_config()
 
 
