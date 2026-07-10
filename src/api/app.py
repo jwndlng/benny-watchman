@@ -5,6 +5,7 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 
+from src.agents.data.elastic_data_agent import ElasticDataAgent
 from src.agents.data.sqlite_data_agent import SQLiteDataAgent
 from src.api.routes.hunt import router as hunt_router
 from src.api.routes.investigate import router as investigate_router
@@ -34,6 +35,20 @@ def create_app(cfg: Config = config) -> FastAPI:
         )
         await data_agent.initialize()
 
+        elastic_agent = (
+            ElasticDataAgent(
+                name="elasticsearch",
+                model=cfg.agent.model,
+                host=cfg.elastic.host,
+                api_key=cfg.elastic.api_key,
+                index_pattern=cfg.elastic.index_pattern,
+            )
+            if cfg.elastic is not None
+            else None
+        )
+        if elastic_agent is not None:
+            await elastic_agent.initialize()
+
         okta_client = (
             OktaClient(
                 org_url=cfg.okta.domain,
@@ -44,17 +59,24 @@ def create_app(cfg: Config = config) -> FastAPI:
             else None
         )
 
+        data_agents = [data_agent]
+        if elastic_agent is not None:
+            data_agents.append(elastic_agent)
+
         persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
         app.state.orchestrator = Orchestrator(
             registry,
             persistence,
             model=cfg.agent.model,
-            data_agents=[data_agent],
+            data_agents=data_agents,
             okta_client=okta_client,
         )
         app.state.persistence = persistence
         app.state.registry = registry
         yield
+
+        if elastic_agent is not None:
+            await elastic_agent.close()
 
     app = FastAPI(title="Benny Watchman", lifespan=lifespan)
     app.include_router(investigate_router)
