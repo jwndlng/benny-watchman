@@ -20,8 +20,6 @@ async def _call(middleware: BearerAuthMiddleware, auth_header: str | None) -> _R
     scope = {"type": "http", "headers": headers}
     response = _Response()
 
-    received: list[dict] = []
-
     async def receive():
         return {"type": "http.request", "body": b""}
 
