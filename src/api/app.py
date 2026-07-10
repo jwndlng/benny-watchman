@@ -1,9 +1,12 @@
 """FastAPI application factory."""
 
+import logging
+import secrets
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import FastAPI
+from mcp.server.fastmcp import FastMCP
 
 from src.agents.data.elastic_data_agent import ElasticDataAgent
 from src.agents.data.sqlite_data_agent import SQLiteDataAgent
@@ -14,13 +17,23 @@ from src.api.routes.reports import router as reports_router
 from src.api.routes.runbooks import router as runbooks_router
 from src.config import Config, config
 from src.integrations.okta import OktaClient
+from src.mcp_auth import BearerAuthMiddleware
+from src.mcp_tools import register_tools
 from src.models import ModelFactory
 from src.orchestrator import Orchestrator
 from src.runbook_registry import RunbookRegistry
 
+logger = logging.getLogger(__name__)
+
 
 def create_app(cfg: Config = config) -> FastAPI:
     """Create and configure the FastAPI application."""
+
+    mcp_token = cfg.mcp_bearer_token or secrets.token_urlsafe(32)
+    if not cfg.mcp_bearer_token:
+        logger.info("MCP bearer token: %s", mcp_token)
+
+    mcp = FastMCP("benny")
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -63,6 +76,8 @@ def create_app(cfg: Config = config) -> FastAPI:
         if elastic_agent is not None:
             data_agents.append(elastic_agent)
 
+        register_tools(mcp, data_agents, registry)
+
         persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
         app.state.orchestrator = Orchestrator(
             registry,
@@ -84,4 +99,6 @@ def create_app(cfg: Config = config) -> FastAPI:
     app.include_router(reports_router)
     app.include_router(runbooks_router)
     app.include_router(hunt_router)
+    app.mount("/mcp", BearerAuthMiddleware(mcp.streamable_http_app(), mcp_token))
+
     return app
