@@ -41,6 +41,7 @@ class BaseAgent[TOutput](ABC):
             model_settings={"api_key": api_key} if api_key else None,
             output_type=output_type,
             system_prompt=self.system_prompt,
+            output_retries=3,
         )
 
     def run_sync(self, prompt: str, **kwargs) -> AgentRunResult[TOutput]:
