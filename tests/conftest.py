@@ -71,6 +71,7 @@ def client(tmp_path):
         data = _Data()
         elastic = None
         okta = None
+        mcp_bearer_token = "test-mcp-token"
 
     app = create_app(cfg=_Config())
     mock_data_agent = MagicMock()

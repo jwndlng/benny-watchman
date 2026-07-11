@@ -52,6 +52,43 @@ Benny is an autonomous AI security analyst. He receives alerts via REST API, inv
 - DataAgent runs are stateless per `query_data` call — no shared context with AnalystAgent
 - Output tokens stay small (final structured JSON + tool calls) — input is the main cost driver
 
+## MCP Server
+
+Benny exposes a Streamable HTTP MCP server at `/mcp` alongside the REST API. Start the app normally and register it in your Claude Code settings.
+
+**`.claude/settings.json`:**
+```json
+{
+  "mcpServers": {
+    "benny": {
+      "url": "http://localhost:5000/mcp/",
+      "headers": { "Authorization": "Bearer <token>" }
+    }
+  }
+}
+```
+
+Alternatively register it in any other LLM agent such as Antigravity CLI (`~/.gemini/config/mcp_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "benny": {
+      "serverUrl": "http://localhost:5000/mcp/",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    }
+  }
+}
+```
+
+**Token:** on first run, a token is printed to stdout if `MCP_BEARER_TOKEN` is not set. Copy it to `.env` as `MCP_BEARER_TOKEN=<token>` to make it stable across restarts.
+
+**Available tools:**
+- `list_runbooks` — discover what alert types Benny can investigate
+- `lookup_data` — natural-language query against configured data sources
+
 ## Key Files
 - `runbooks/` — Runbook definitions (YAML frontmatter + Markdown)
 - `src/engines/` — Query engine abstractions (SQLite now, ClickHouse next)

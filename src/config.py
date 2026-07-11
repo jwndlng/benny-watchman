@@ -97,6 +97,7 @@ class Config:
     data = _DataConfig()
     elastic: "_ElasticConfig | None" = _load_elastic_config()
     okta: "_OktaConfig | None" = _load_okta_config()
+    mcp_bearer_token: "str | None" = os.environ.get("MCP_BEARER_TOKEN") or None
 
 
 config = Config()
