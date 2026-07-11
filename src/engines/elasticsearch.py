@@ -109,7 +109,9 @@ class ElasticsearchEngine:
 
         def _fetch(q: str) -> list[dict[str, object]]:
             response = self._client.esql.query(body={"query": q})
-            logfire.info("es_run_query result", row_count=len(response.get("values", [])))  # type: ignore[union-attr]
+            logfire.info(
+                "es_run_query result", row_count=len(response.get("values", []))
+            )  # type: ignore[union-attr]
             return _rows_from_esql(response)
 
         return await asyncio.to_thread(_fetch, esql)

@@ -1,9 +1,11 @@
 """FastAPI application factory."""
 
+import secrets
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import FastAPI
+from mcp.server.fastmcp import FastMCP
 
 from src.agents.data.elastic_data_agent import ElasticDataAgent
 from src.agents.data.sqlite_data_agent import SQLiteDataAgent
@@ -14,6 +16,8 @@ from src.api.routes.reports import router as reports_router
 from src.api.routes.runbooks import router as runbooks_router
 from src.config import Config, config
 from src.integrations.okta import OktaClient
+from src.mcp_auth import BearerAuthMiddleware
+from src.mcp_tools import register_tools
 from src.models import ModelFactory
 from src.orchestrator import Orchestrator
 from src.runbook_registry import RunbookRegistry
@@ -22,61 +26,74 @@ from src.runbook_registry import RunbookRegistry
 def create_app(cfg: Config = config) -> FastAPI:
     """Create and configure the FastAPI application."""
 
+    mcp_token = cfg.mcp_bearer_token or secrets.token_urlsafe(32)
+    if not cfg.mcp_bearer_token:
+        print(f"MCP bearer token: {mcp_token}", flush=True)
+
+    # streamable_http_path="/" so the sub-app handles "/" after FastAPI strips the
+    # "/mcp" mount prefix. Calling streamable_http_app() here initialises the
+    # session manager so we can start it inside FastAPI's own lifespan below.
+    mcp = FastMCP("benny", streamable_http_path="/")
+    mcp_asgi_app = mcp.streamable_http_app()
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """Initialise shared state on startup."""
-        registry = RunbookRegistry()
-        registry.load(cfg.runbooks.path)
+        async with mcp.session_manager.run():
+            registry = RunbookRegistry()
+            registry.load(cfg.runbooks.path)
 
-        data_agent = SQLiteDataAgent(
-            name=cfg.data.name,
-            model=cfg.agent.model,
-            db_path=cfg.data.db_path,
-        )
-        await data_agent.initialize()
-
-        elastic_agent = (
-            ElasticDataAgent(
-                name="elasticsearch",
+            data_agent = SQLiteDataAgent(
+                name=cfg.data.name,
                 model=cfg.agent.model,
-                host=cfg.elastic.host,
-                api_key=cfg.elastic.api_key,
-                index_pattern=cfg.elastic.index_pattern,
+                db_path=cfg.data.db_path,
             )
-            if cfg.elastic is not None
-            else None
-        )
-        if elastic_agent is not None:
-            await elastic_agent.initialize()
+            await data_agent.initialize()
 
-        okta_client = (
-            OktaClient(
-                org_url=cfg.okta.domain,
-                client_id=cfg.okta.client_id,
-                private_key_b64=cfg.okta.private_key_b64,
+            elastic_agent = (
+                ElasticDataAgent(
+                    name="elasticsearch",
+                    model=cfg.agent.model,
+                    host=cfg.elastic.host,
+                    api_key=cfg.elastic.api_key,
+                    index_pattern=cfg.elastic.index_pattern,
+                )
+                if cfg.elastic is not None
+                else None
             )
-            if cfg.okta is not None
-            else None
-        )
+            if elastic_agent is not None:
+                await elastic_agent.initialize()
 
-        data_agents = [data_agent]
-        if elastic_agent is not None:
-            data_agents.append(elastic_agent)
+            okta_client = (
+                OktaClient(
+                    org_url=cfg.okta.domain,
+                    client_id=cfg.okta.client_id,
+                    private_key_b64=cfg.okta.private_key_b64,
+                )
+                if cfg.okta is not None
+                else None
+            )
 
-        persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
-        app.state.orchestrator = Orchestrator(
-            registry,
-            persistence,
-            model=cfg.agent.model,
-            data_agents=data_agents,
-            okta_client=okta_client,
-        )
-        app.state.persistence = persistence
-        app.state.registry = registry
-        yield
+            data_agents = [data_agent]
+            if elastic_agent is not None:
+                data_agents.append(elastic_agent)
 
-        if elastic_agent is not None:
-            await elastic_agent.close()
+            register_tools(mcp, data_agents, registry)
+
+            persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
+            app.state.orchestrator = Orchestrator(
+                registry,
+                persistence,
+                model=cfg.agent.model,
+                data_agents=data_agents,
+                okta_client=okta_client,
+            )
+            app.state.persistence = persistence
+            app.state.registry = registry
+            yield
+
+            if elastic_agent is not None:
+                await elastic_agent.close()
 
     app = FastAPI(title="Benny Watchman", lifespan=lifespan)
     app.include_router(investigate_router)
@@ -84,4 +101,6 @@ def create_app(cfg: Config = config) -> FastAPI:
     app.include_router(reports_router)
     app.include_router(runbooks_router)
     app.include_router(hunt_router)
+    app.mount("/mcp", BearerAuthMiddleware(mcp_asgi_app, mcp_token))
+
     return app

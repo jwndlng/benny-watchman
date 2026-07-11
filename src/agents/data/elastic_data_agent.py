@@ -39,7 +39,10 @@ class ElasticDataAgent(BaseDataAgent):
             "- Sorting: | SORT @timestamp DESC\n"
             "- Always end queries with | LIMIT <n>\n\n"
             "ES|QL does NOT support: subqueries, CTEs, JOINs across indices, "
-            "or window functions."
+            "or window functions.\n\n"
+            "After executing queries, return your final answer as a DataModel: "
+            "set `rows` to the list of result documents from run_query, and `notes` "
+            "to a brief summary of what index was queried and what was found."
         )
 
     @property
