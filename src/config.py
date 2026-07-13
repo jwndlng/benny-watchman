@@ -13,7 +13,7 @@ class _PersistenceConfig:
 class _RunbooksConfig:
     """Runbook loader settings."""
 
-    path: str = os.environ.get("RUNBOOKS_PATH", "runbooks")
+    path: str = os.environ.get("RUNBOOKS_PATH", "src/modules/siem/runbooks")
 
 
 class _AgentConfig:

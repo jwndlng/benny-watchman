@@ -12,7 +12,7 @@ import sys
 import logfire
 
 from src.config import Config
-from src.runbook_registry import RunbookRegistry
+from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.utils.observability import setup_observability
 from tests.harness.cases.base_case import BaseCase
 from tests.harness.cases.case_brute_force import BruteForceCase

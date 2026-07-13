@@ -1,5 +1,1 @@
-"""MCP server entry point for interactive threat hunting sessions (post-MVP)."""
-
-
-class MCPServer:
-    """MCP server for interactive threat hunting sessions (post-MVP)."""
+"""MCP transport: `server/` exposes Benny as an MCP server; `clients/` consumes external MCP servers."""

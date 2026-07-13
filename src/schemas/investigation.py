@@ -5,7 +5,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from src.schemas.incident_report import IncidentReport, Severity, Verdict
+from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
 
 
 class InvestigationStatus(str, Enum):

@@ -7,7 +7,7 @@ Adding a new intel provider means adding a tool here only.
 
 from pydantic import BaseModel, Field
 
-from src.agents.base_agent import BaseAgent
+from src.core.agents.base_agent import BaseAgent
 
 
 class EnrichmentModel(BaseModel):

@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic_ai.models.test import TestModel
 
-from src.agents.analyst_agent import AnalystAgent
-from src.runbook_registry import Runbook
-from src.schemas.user_profile import UserProfile
+from src.modules.siem.analyst import AnalystAgent
+from src.core.orchestration.runbook_registry import Runbook
+from src.capabilities.identity.user_profile import UserProfile
 
 
 def _make_runbook() -> Runbook:

@@ -6,7 +6,7 @@ import pytest
 
 from src.engines.sqlite import SQLiteEngine
 from src.models import InvestigationModel
-from src.schemas.incident_report import Severity, Verdict
+from src.modules.siem.incident_report import Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
 
 

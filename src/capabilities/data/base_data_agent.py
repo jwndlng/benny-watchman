@@ -10,7 +10,7 @@ from abc import abstractmethod
 from pydantic import BaseModel, Field
 from pydantic_ai import AgentRunResult
 
-from src.agents.base_agent import BaseAgent
+from src.core.agents.base_agent import BaseAgent
 
 
 class DataModel(BaseModel):

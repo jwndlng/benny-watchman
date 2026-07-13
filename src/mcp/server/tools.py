@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING
 
 from mcp.server.fastmcp import FastMCP
 
-from src.agents.data.base_data_agent import BaseDataAgent
+from src.capabilities.data.base_data_agent import BaseDataAgent
 
 if TYPE_CHECKING:
-    from src.runbook_registry import RunbookRegistry
+    from src.core.orchestration.runbook_registry import RunbookRegistry
 
 
 def register_tools(

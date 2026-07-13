@@ -11,10 +11,10 @@ import os
 import pytest
 
 from src.models import ModelFactory
-from src.orchestrator import Orchestrator
-from src.runbook_registry import RunbookRegistry
-from src.schemas.alert import Alert, Severity
-from src.schemas.incident_report import IncidentReport
+from src.core.orchestration.orchestrator import Orchestrator
+from src.core.orchestration.runbook_registry import RunbookRegistry
+from src.modules.siem.alert import Alert, Severity
+from src.modules.siem.incident_report import IncidentReport
 from src.schemas.investigation import InvestigationStatus
 from tests.harness.seeder.synthetic_db import (
     BRUTE_FORCE_ATTACKER_IP,
@@ -34,7 +34,7 @@ def orchestrator(tmp_path):
     persistence = ModelFactory.investigations(db_path=inv_db)
 
     registry = RunbookRegistry()
-    registry.load("runbooks")
+    registry.load("src/modules/siem/runbooks")
 
     model = os.environ.get("AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview")
     os.environ["DATA_BACKEND_DB_PATH"] = data_db

@@ -89,9 +89,19 @@ Alternatively register it in any other LLM agent such as Antigravity CLI (`~/.ge
 - `list_runbooks` — discover what alert types Benny can investigate
 - `lookup_data` — natural-language query against configured data sources
 
+## Project Structure
+
+Source is organized along a horizontal/vertical seam (see `openspec/changes/modular-soc-architecture`):
+- `src/core/` — domain-agnostic framework and orchestration (`core/agents/base_agent.py`, `core/orchestration/`)
+- `src/capabilities/` — cross-cutting horizontals shared by all domains: `data/` (DataAgents), `identity/` (Okta), `enrichment/`
+- `src/modules/` — per-domain verticals; `modules/siem/` holds the SIEM analyst, detection engineer, `Alert`/`IncidentReport` schemas, and `runbooks/`
+- `src/mcp/server/` — Benny AS an MCP server (FastMCP assembly, tools, auth); `src/mcp/clients/` — Benny AS a client of external MCP servers (e.g. ClickHouse)
+- `src/engines/`, `src/config.py`, `src/models.py`, `src/utils/` — shared infrastructure
+
 ## Key Files
-- `runbooks/` — Runbook definitions (YAML frontmatter + Markdown)
+- `src/modules/siem/runbooks/` — SIEM runbook definitions (YAML frontmatter + Markdown)
 - `src/engines/` — Query engine abstractions (SQLite now, ClickHouse next)
-- `src/agents/` — AnalystAgent, DataAgent, BaseAgent
+- `src/core/agents/base_agent.py` — BaseAgent framework
+- `src/modules/siem/analyst.py` — SIEM AnalystAgent; `src/capabilities/data/` — DataAgents
 - `src/models.py` — Persistence models backed by Engine
-- `src/runbook_registry.py` — Runbook loader and matcher
+- `src/core/orchestration/runbook_registry.py` — Runbook loader and matcher

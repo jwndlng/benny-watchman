@@ -4,7 +4,7 @@ import json
 
 import logfire
 
-from src.agents.data.base_data_agent import BaseDataAgent, DataModel
+from src.capabilities.data.base_data_agent import BaseDataAgent, DataModel
 from src.engines.base import ColumnInfo, TableInfo
 from src.engines.sqlite import SQLiteEngine
 

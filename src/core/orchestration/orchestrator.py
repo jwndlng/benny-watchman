@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.agents.analyst_agent import AnalystAgent
-from src.agents.data.base_data_agent import BaseDataAgent
+from src.modules.siem.analyst import AnalystAgent
+from src.capabilities.data.base_data_agent import BaseDataAgent
 from src.models import InvestigationModel
-from src.runbook_registry import RunbookRegistry
-from src.schemas.alert import Alert
+from src.core.orchestration.runbook_registry import RunbookRegistry
+from src.modules.siem.alert import Alert
 from src.schemas.investigation import Investigation
 
 if TYPE_CHECKING:
-    from src.integrations.okta import OktaClient
+    from src.capabilities.identity.okta import OktaClient
 
 
 class Orchestrator:

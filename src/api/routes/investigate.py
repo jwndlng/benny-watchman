@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from src.api.schemas.investigate_request import InvestigateRequest
-from src.schemas.alert import Alert
+from src.modules.siem.alert import Alert
 
 router = APIRouter()
 

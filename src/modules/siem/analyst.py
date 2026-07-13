@@ -17,16 +17,16 @@ import logfire
 from pydantic import BaseModel, Field
 from pydantic_ai import AgentRunResult
 
-from src.agents.base_agent import BaseAgent
-from src.agents.data.base_data_agent import BaseDataAgent, DataModel
-from src.runbook_registry import Runbook
-from src.schemas.alert import Alert
-from src.schemas.incident_report import IncidentReport, Severity, Verdict
+from src.core.agents.base_agent import BaseAgent
+from src.capabilities.data.base_data_agent import BaseDataAgent, DataModel
+from src.core.orchestration.runbook_registry import Runbook
+from src.modules.siem.alert import Alert
+from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
-from src.schemas.user_profile import UserProfile
+from src.capabilities.identity.user_profile import UserProfile
 
 if TYPE_CHECKING:
-    from src.integrations.okta import OktaClient
+    from src.capabilities.identity.okta import OktaClient
 
 
 def _make_query_tool(data_agent: BaseDataAgent) -> Callable:

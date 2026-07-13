@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api.app import create_app
-from src.schemas.incident_report import IncidentReport, Severity, Verdict
+from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
 from tests.harness.seeder.synthetic_db import SyntheticDataset
 
@@ -55,7 +55,7 @@ def client(tmp_path):
         db_path = str(tmp_path / "test.db")
 
     class _Runbooks:
-        path = "runbooks"
+        path = "src/modules/siem/runbooks"
 
     class _Agent:
         model = "test:stub"
@@ -79,7 +79,7 @@ def client(tmp_path):
     mock_data_agent.routing_description = "Mock data source for tests."
     mock_data_agent.initialize = AsyncMock()
     with patch("src.api.app.SQLiteDataAgent", return_value=mock_data_agent):
-        with patch("src.orchestrator.AnalystAgent") as mock_cls:
+        with patch("src.core.orchestration.orchestrator.AnalystAgent") as mock_cls:
             mock_cls.return_value.investigate.side_effect = lambda alert: (
                 _stub_investigation(alert.id, "generic")
             )

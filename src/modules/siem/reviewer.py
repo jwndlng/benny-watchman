@@ -6,8 +6,8 @@ Does not call tools; reasons over provided findings only.
 Post-MVP.
 """
 
-from src.agents.base_agent import BaseAgent
-from src.schemas.incident_report import IncidentReport
+from src.core.agents.base_agent import BaseAgent
+from src.modules.siem.incident_report import IncidentReport
 
 
 class ReviewerAgent(BaseAgent[IncidentReport]):

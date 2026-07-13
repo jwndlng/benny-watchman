@@ -8,7 +8,7 @@ Post-MVP.
 
 from pydantic import BaseModel, Field
 
-from src.agents.base_agent import BaseAgent
+from src.core.agents.base_agent import BaseAgent
 
 
 class DetectionEngineerModel(BaseModel):
