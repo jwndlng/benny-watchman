@@ -12,4 +12,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 RUN uv sync --frozen --no-dev
 
+# Version metadata — passed at build time by CI, defaults to "dev" for local builds
+ARG APP_VERSION=dev
+LABEL org.opencontainers.image.version=$APP_VERSION
+ENV APP_VERSION=$APP_VERSION
+
 CMD ["uv", "run", "python", "main.py"]
