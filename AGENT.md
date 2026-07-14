@@ -7,7 +7,7 @@ Benny is an autonomous AI security analyst. He receives alerts via REST API, inv
 
 ## Tech Stack
 - **Language:** Python
-- **API:** Flask
+- **API:** FastAPI
 - **Data:** SQLite (dev/test) → ClickHouse via MCP stdio transport (production)
 - **LLM:** Model-agnostic (Anthropic, Google, OpenAI) — configurable at runtime via `AGENT_MODEL`
 - **Observability:** Logfire (PydanticAI instrumentation + custom spans)
