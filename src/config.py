@@ -50,6 +50,16 @@ class _DataConfig:
     name: str = os.environ.get("DATA_AGENT_NAME", "security_logs")
 
 
+class _VulnConfig:
+    """Vulnerability Management module settings."""
+
+    runbooks_path: str = os.environ.get(
+        "VULN_RUNBOOKS_PATH", "src/modules/vuln_mgmt/runbooks"
+    )
+    db_path: str = os.environ.get("VULN_DB_PATH", "vuln.db")
+    name: str = os.environ.get("VULN_DATA_AGENT_NAME", "asset_inventory")
+
+
 class _OktaConfig:
     """Okta IDP integration settings — JWT private key authentication."""
 
@@ -95,6 +105,7 @@ class Config:
     runbooks = _RunbooksConfig()
     agent = _AgentConfig()
     data = _DataConfig()
+    vuln = _VulnConfig()
     elastic: "_ElasticConfig | None" = _load_elastic_config()
     okta: "_OktaConfig | None" = _load_okta_config()
     mcp_bearer_token: "str | None" = os.environ.get("MCP_BEARER_TOKEN") or None

@@ -24,9 +24,12 @@ class SIEMModule:
     name = "siem"
     input_type = Alert
 
-    def __init__(self, model: str, runbooks: RunbookRegistry) -> None:
+    def __init__(
+        self, model: str, runbooks: RunbookRegistry, data_sources: list[str]
+    ) -> None:
         self._model = model
         self._runbooks = runbooks
+        self._data_sources = data_sources
 
     def accepts(self, raw: dict) -> bool:
         """True if the payload is a valid SIEM alert."""
@@ -43,10 +46,11 @@ class SIEMModule:
     def investigate(self, alert: Alert, caps: Capabilities) -> Investigation:
         """Match a runbook by alert type and run a scoped AnalystAgent."""
         runbook = self._runbooks.match(alert.type)
+        data_agents = [caps.data[n] for n in self._data_sources if n in caps.data]
         analyst = AnalystAgent(
             model=self._model,
             runbook=runbook,
-            data_agents=list(caps.data.values()),
+            data_agents=data_agents,
             identity=caps.identity,
         )
         return analyst.investigate(alert)

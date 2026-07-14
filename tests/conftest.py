@@ -37,7 +37,7 @@ def _stub_investigation(alert_id: str, runbook_name: str) -> Investigation:
         runbook=runbook_name,
         created_at=now,
         completed_at=now,
-        report=report,
+        report=report.model_dump(mode="json"),
     )
 
 
@@ -64,11 +64,17 @@ def client(tmp_path):
         db_path = str(tmp_path / "data.db")
         name = "security_logs"
 
+    class _Vuln:
+        db_path = str(tmp_path / "vuln.db")
+        runbooks_path = "src/modules/vuln_mgmt/runbooks"
+        name = "asset_inventory"
+
     class _Config:
         persistence = _Persistence()
         runbooks = _Runbooks()
         agent = _Agent()
         data = _Data()
+        vuln = _Vuln()
         elastic = None
         okta = None
         mcp_bearer_token = "test-mcp-token"
@@ -79,9 +85,15 @@ def client(tmp_path):
     mock_data_agent.routing_description = "Mock data source for tests."
     mock_data_agent.initialize = AsyncMock()
     with patch("src.api.app.SQLiteDataAgent", return_value=mock_data_agent):
-        with patch("src.modules.siem.module.AnalystAgent") as mock_cls:
+        with (
+            patch("src.modules.siem.module.AnalystAgent") as mock_cls,
+            patch("src.modules.vuln_mgmt.module.VulnAnalystAgent") as vuln_cls,
+        ):
             mock_cls.return_value.investigate.side_effect = lambda alert: (
                 _stub_investigation(alert.id, "generic")
+            )
+            vuln_cls.return_value.investigate.side_effect = lambda finding: (
+                _stub_investigation(finding.id, "generic")
             )
             with TestClient(app) as client:
                 yield client
