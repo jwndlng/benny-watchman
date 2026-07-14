@@ -29,6 +29,19 @@ Benny is an autonomous AI security analyst. He receives alerts via REST API, inv
 - Tools are implemented as methods and registered in `__init__` via `self.agent.tool_plain(self.method)` — no closures
 - Tool docstrings are the tool description sent to the LLM — keep them precise and include input expectations
 
+## Agent boundaries & cost (the compression-boundary rule)
+
+Benny is built from two kinds of agents: **vertical analyst modules** (SIEM, later VM) that own a triage domain end-to-end, over shared **horizontal capabilities** (data, identity, enrichment) under an `OrchestratorAgent`. Every agentic loop re-sends its whole history each turn, so context cost grows ~quadratically with tool-call turns. Put a boundary wherever multiple round-trips would otherwise pile up in a parent's expensive context — but decide *what kind* of boundary with this rule:
+
+| Unit of work | Compresses parent context? | Needs reasoning? | Build as |
+|---|---|---|---|
+| Single call | no | no | inline tool |
+| N fixed calls, fixed summary | **yes** | no | **composite deterministic tool** (e.g. `IdentityCapability`) |
+| N calls, path/verdict decided by a model | **yes** | yes | **sub-agent (LLM loop)** (e.g. `DataAgent`) |
+| The investigation's own top-level reasoning | n/a | yes | the analyst itself — **never sharded** |
+
+Two guardrails: **"needs reasoning" ≠ "has a parameter"** (a parameterized-but-fixed query is still a composite tool); and **don't shard the core reasoning** (the "what's the verdict?" step is the analyst's job). Reserve LLM loops for genuine planning or a high raw→distilled ratio; make everything else a plain/composite tool. This keeps the agent tree from quietly becoming an expensive N-deep nest.
+
 ## Coding Guidelines
 - Use `@property` methods to expose agent behaviour (`instructions`, `system_prompt`, `constraints`) — keeps classes clean and declarative
 - Type everything — function signatures, return types, class attributes. Avoid `Any`
