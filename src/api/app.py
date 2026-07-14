@@ -13,6 +13,7 @@ from src.api.routes.reports import router as reports_router
 from src.api.routes.runbooks import router as runbooks_router
 from src.capabilities.data.elastic_data_agent import ElasticDataAgent
 from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
+from src.capabilities.identity.assessment import IdentityCapability
 from src.capabilities.identity.okta import OktaClient
 from src.config import Config, config
 from src.core.orchestration.capabilities import Capabilities
@@ -81,7 +82,7 @@ def create_app(cfg: Config = config) -> FastAPI:
 
             capabilities = Capabilities(
                 data={agent.name: agent for agent in data_agents},
-                identity=okta_client,
+                identity=IdentityCapability(okta_client),
             )
             module_registry = ModuleRegistry()
             module_registry.register(

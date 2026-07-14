@@ -43,6 +43,6 @@ class SIEMModule:
             model=self._model,
             runbook=runbook,
             data_agents=list(caps.data.values()),
-            okta_client=caps.identity,
+            identity=caps.identity,
         )
         return analyst.investigate(alert)

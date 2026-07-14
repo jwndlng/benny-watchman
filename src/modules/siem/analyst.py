@@ -26,7 +26,7 @@ from src.schemas.investigation import Investigation, InvestigationStatus
 from src.capabilities.identity.user_profile import UserProfile
 
 if TYPE_CHECKING:
-    from src.capabilities.identity.okta import OktaClient
+    from src.capabilities.identity.assessment import IdentityCapability
 
 
 def _make_query_tool(data_agent: BaseDataAgent) -> Callable:
@@ -91,7 +91,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         model: str,
         runbook: Runbook,
         data_agents: list[BaseDataAgent],
-        okta_client: OktaClient | None = None,
+        identity: IdentityCapability | None = None,
     ) -> None:
         self._runbook = (
             runbook  # must be set before super().__init__ calls self.instructions
@@ -101,7 +101,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
             duplicates = {n for n in names if names.count(n) > 1}
             raise ValueError(f"Duplicate DataAgent names: {duplicates}")
         self._data_agents = data_agents
-        self._okta_client = okta_client
+        self._identity = identity
         super().__init__(
             model=model,
             output_type=AnalystModel,
@@ -116,8 +116,8 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         Returns employment status, tenure, location, and access level.
         Use this to assess whether activity is expected for this user's role and context.
         Returns None if identity context is unavailable."""
-        if self._okta_client is not None:
-            return await self._okta_client.get_user(username)
+        if self._identity is not None:
+            return await self._identity.lookup_user(username)
         return None
 
     def investigate(self, alert: Alert) -> Investigation:

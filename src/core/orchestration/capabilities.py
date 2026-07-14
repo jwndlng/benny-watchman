@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.capabilities.data.base_data_agent import BaseDataAgent
-    from src.capabilities.identity.okta import OktaClient
+    from src.capabilities.identity.assessment import IdentityCapability
 
 
 @dataclass
@@ -19,4 +19,4 @@ class Capabilities:
     """Typed container of the horizontal capabilities a module may consult."""
 
     data: dict[str, BaseDataAgent] = field(default_factory=dict)
-    identity: OktaClient | None = None
+    identity: IdentityCapability | None = None
