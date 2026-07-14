@@ -15,10 +15,13 @@ from src.capabilities.data.elastic_data_agent import ElasticDataAgent
 from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
 from src.capabilities.identity.okta import OktaClient
 from src.config import Config, config
-from src.core.orchestration.orchestrator import Orchestrator
+from src.core.orchestration.capabilities import Capabilities
+from src.core.orchestration.module_registry import ModuleRegistry
+from src.core.orchestration.orchestrator import OrchestratorAgent
 from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.mcp.server.app import MCPServer
 from src.models import ModelFactory
+from src.modules.siem.module import SIEMModule
 
 
 def create_app(cfg: Config = config) -> FastAPI:
@@ -75,12 +78,18 @@ def create_app(cfg: Config = config) -> FastAPI:
             mcp_server.register(data_agents, registry)
 
             persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
-            app.state.orchestrator = Orchestrator(
-                registry,
-                persistence,
-                model=cfg.agent.model,
-                data_agents=data_agents,
-                okta_client=okta_client,
+
+            capabilities = Capabilities(
+                data={agent.name: agent for agent in data_agents},
+                identity=okta_client,
+            )
+            module_registry = ModuleRegistry()
+            module_registry.register(
+                SIEMModule(model=cfg.agent.model, runbooks=registry)
+            )
+
+            app.state.orchestrator = OrchestratorAgent(
+                module_registry, persistence, capabilities
             )
             app.state.persistence = persistence
             app.state.registry = registry

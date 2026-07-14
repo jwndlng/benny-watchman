@@ -98,6 +98,12 @@ Source is organized along a horizontal/vertical seam (see `openspec/changes/modu
 - `src/mcp/server/` — Benny AS an MCP server (FastMCP assembly, tools, auth); `src/mcp/clients/` — Benny AS a client of external MCP servers (e.g. ClickHouse)
 - `src/engines/`, `src/config.py`, `src/models.py`, `src/utils/` — shared infrastructure
 
+### Orchestration & the module contract
+- A triage domain is an `AnalystModule` (`src/core/orchestration/module.py`): a Protocol with `name`, `input_type`, `accepts(raw)`, and `investigate(inp, caps)`. Adding a domain means adding a module — not modifying core.
+- `OrchestratorAgent` (`src/core/orchestration/orchestrator.py`) exposes `handle(raw, hint=None)`: an explicit `hint` dispatches directly (no LLM); otherwise it resolves a module via `accepts()`. Routes to one module today; the return type leaves room for cross-module synthesis.
+- `ModuleRegistry` holds modules (domain-level); `RunbookRegistry` selects playbooks *within* a module — two registries at two levels.
+- `Capabilities` (`src/core/orchestration/capabilities.py`) is a typed container of shared instances (data agents, identity), built once at the composition root (`api/app.py`) and injected into `investigate()`. `SIEMModule` (`src/modules/siem/module.py`) is the first module.
+
 ## Key Files
 - `src/modules/siem/runbooks/` — SIEM runbook definitions (YAML frontmatter + Markdown)
 - `src/engines/` — Query engine abstractions (SQLite now, ClickHouse next)

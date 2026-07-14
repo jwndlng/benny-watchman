@@ -79,7 +79,7 @@ def client(tmp_path):
     mock_data_agent.routing_description = "Mock data source for tests."
     mock_data_agent.initialize = AsyncMock()
     with patch("src.api.app.SQLiteDataAgent", return_value=mock_data_agent):
-        with patch("src.core.orchestration.orchestrator.AnalystAgent") as mock_cls:
+        with patch("src.modules.siem.module.AnalystAgent") as mock_cls:
             mock_cls.return_value.investigate.side_effect = lambda alert: (
                 _stub_investigation(alert.id, "generic")
             )
