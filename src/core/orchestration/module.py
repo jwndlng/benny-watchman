@@ -26,6 +26,10 @@ class AnalystModule(Protocol):
         """Return True if this module can handle the given raw payload."""
         ...
 
+    def dedup_key(self, inp: object) -> str:
+        """Stable identity for the input — enforces 'review once' per finding."""
+        ...
+
     def investigate(self, inp: object, caps: Capabilities) -> Investigation:
         """Investigate a validated input and return the resulting Investigation."""
         ...

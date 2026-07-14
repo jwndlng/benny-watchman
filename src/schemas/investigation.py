@@ -21,6 +21,13 @@ class Investigation(BaseModel):
     """Investigation process entity — created when an alert is submitted."""
 
     id: str = Field(description="Unique investigation identifier")
+    key: str = Field(
+        default="",
+        description="Dedup key '<module>:<module dedup key>' — enforces review-once",
+    )
+    module: str = Field(
+        default="", description="Analyst module that produced this investigation"
+    )
     alert_id: str = Field(
         description="ID of the alert that triggered this investigation"
     )

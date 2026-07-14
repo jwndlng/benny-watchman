@@ -36,6 +36,10 @@ class SIEMModule:
         except Exception:  # noqa: BLE001
             return False
 
+    def dedup_key(self, alert: Alert) -> str:
+        """Each alert firing is reviewed once, keyed by its id."""
+        return alert.id
+
     def investigate(self, alert: Alert, caps: Capabilities) -> Investigation:
         """Match a runbook by alert type and run a scoped AnalystAgent."""
         runbook = self._runbooks.match(alert.type)

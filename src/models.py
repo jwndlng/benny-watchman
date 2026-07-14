@@ -50,6 +50,17 @@ class InvestigationModel(BaseModel[Investigation]):
     _model_type = Investigation
     _table = "investigations"
 
+    def find_by_key(self, key: str) -> Investigation | None:
+        """Return the investigation with the given dedup key, or None.
+
+        Scans the table — acceptable at current volume; a ClickHouse backend
+        will replace this with an indexed query.
+        """
+        for investigation in self.list():
+            if investigation.key == key:
+                return investigation
+        return None
+
 
 class ModelFactory:
     """Creates model instances wired to the configured engine."""

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import logfire
@@ -13,12 +14,26 @@ if TYPE_CHECKING:
     from src.schemas.investigation import Investigation
 
 
+@dataclass
+class HandleResult:
+    """Outcome of a handled request.
+
+    `created` is True when a fresh investigation was run, False when an existing
+    one was returned (dedup hit) or no module could handle the request.
+    """
+
+    investigation: Investigation | None
+    created: bool
+
+
 class OrchestratorAgent:
     """Resolves an AnalystModule for a request and delegates the investigation.
 
     Two-speed routing: an explicit `hint` dispatches directly with no classifier;
-    otherwise the module is resolved via each module's `accepts()`. Routes to a
-    single module today — the return type leaves room for cross-module synthesis.
+    otherwise the module is resolved via each module's `accepts()`. Enforces
+    "review once": a request whose dedup key already has an investigation returns
+    the stored one instead of re-running. Routes to a single module today — the
+    return type leaves room for cross-module synthesis.
     """
 
     def __init__(
@@ -31,17 +46,25 @@ class OrchestratorAgent:
         self._persistence = persistence
         self._capabilities = capabilities
 
-    def handle(self, raw: dict, hint: str | None = None) -> Investigation | None:
-        """Resolve a module, run the investigation, persist and return it.
-
-        Returns None when no module can handle the request.
-        """
+    def handle(self, raw: dict, hint: str | None = None) -> HandleResult:
+        """Resolve a module, dedup, run if needed, persist, and return the result."""
         module = self._registry.get(hint) if hint else self._registry.resolve(raw)
         if module is None:
             logfire.info("no module resolved for request", hint=hint)
-            return None
-        investigation = module.investigate(module.input_type(**raw), self._capabilities)
+            return HandleResult(investigation=None, created=False)
+
+        inp = module.input_type(**raw)
+        key = f"{module.name}:{module.dedup_key(inp)}"
+
+        existing = self._persistence.find_by_key(key)
+        if existing is not None:
+            logfire.info("dedup hit — returning existing investigation", key=key)
+            return HandleResult(investigation=existing, created=False)
+
+        investigation = module.investigate(inp, self._capabilities)
         if investigation is None:
-            return None
+            return HandleResult(investigation=None, created=False)
+        investigation.key = key
+        investigation.module = module.name
         self._persistence.save(investigation)
-        return investigation
+        return HandleResult(investigation=investigation, created=True)

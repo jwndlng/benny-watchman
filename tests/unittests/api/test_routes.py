@@ -31,6 +31,17 @@ def test_investigate_missing_body(client):
     assert response.status_code == 422
 
 
+def test_investigate_is_idempotent(client):
+    first = client.post("/investigate", json=VALID_ALERT)
+    assert first.status_code == 202
+    second = client.post("/investigate", json=VALID_ALERT)
+    assert second.status_code == 200
+    assert second.json()["id"] == first.json()["id"]
+
+    listing = client.get("/investigations").json()
+    assert len(listing) == 1
+
+
 # GET /investigations
 def test_list_investigations_empty(client):
     response = client.get("/investigations")
