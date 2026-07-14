@@ -1,60 +1,85 @@
 # Benny, never sleeps, Watchman.
 
-Benny is an autonomous AI security analyst. He receives alerts via REST API, investigates them using an agentic reasoning loop against your log data, and returns structured triage reports — fully unattended, 24/7.
+Benny is an autonomous AI security analyst — a small **team of domain experts** you can hand work to. He receives alerts and vulnerability findings via REST API, investigates them with agentic reasoning loops against your data, and returns structured triage reports — fully unattended, 24/7.
 
 *Benny's on it.*
 
 ## How it works
 
-1. An alert arrives via `POST /investigate`
-2. The **Orchestrator** matches the alert type to a **Runbook** (YAML + Markdown investigation instructions)
-3. The **AnalystAgent** runs a ReAct loop — querying log data and reasoning until it reaches a conclusion or hits the iteration limit
-4. A structured **Incident Report** is returned and persisted
+1. A request arrives — a security alert (`POST /investigate`) or a vulnerability finding (`POST /findings`).
+2. The **OrchestratorAgent** routes it to the right **module** (SIEM or Vulnerability Management). Each request is investigated **once** — a repeat submission returns the stored result (`200`) instead of re-running.
+3. The module matches a **Runbook** (YAML + Markdown playbook) and runs its analyst — a ReAct loop that queries data and reasons until it reaches a verdict or hits the iteration limit.
+4. A structured report is persisted inside a domain-agnostic **Investigation** envelope (with a generic `outcome` for cross-domain listing).
+
+## Architecture
+
+Benny is organized along a **horizontal / vertical** seam so new triage domains drop in as modules without touching the core:
+
+- **Modules (verticals)** — one per triage domain; each owns its input, playbooks, analyst, and report:
+  - **SIEM** — triages security alerts (`Alert` → `IncidentReport`)
+  - **Vulnerability Management** — triages scanner findings (`Finding` → `VulnTriageReport`)
+- **Capabilities (horizontals)** — shared by every module:
+  - **Data** — natural-language queries against a backend (SQLite / Elasticsearch / …)
+  - **Identity** — user, role, and access context (Okta)
+  - **Enrichment** — threat intel for indicators / CVEs
+- **Core** — `BaseAgent` framework, `OrchestratorAgent` (routing + idempotency), `ModuleRegistry`, and the `Capabilities` container.
+- **MCP server** — exposes Benny to LLM clients (Claude Code, Antigravity, …) at `/mcp`.
+
+Adding a triage domain = adding a `src/modules/<domain>/` folder that implements the `AnalystModule` contract. The layout mirrors this seam: `src/core/`, `src/capabilities/`, `src/modules/`, `src/mcp/{server,clients}/`.
+
+## Components
+
+| Component | Kind | Role |
+|---|---|---|
+| `OrchestratorAgent` | core | Routes each request to a module; enforces review-once |
+| SIEM module | vertical | Triages alerts → verdict + SOC actions |
+| Vulnerability Management module | vertical | Triages findings → exploitability, priority, remediation SLA |
+| `DataAgent` | capability | Translates NL data requests into backend queries (SQLite, Elasticsearch, …) |
+| `IdentityCapability` | capability | User / employment / access context (Okta) |
+| Enrichment | capability | Enriches IPs, domains, hashes, CVEs via threat intel |
+
+*Planned:* conversational MCP (`query`/`recall` through the orchestrator, incl. threat hunting), cross-module "lead-analyst" synthesis, detection-rule drafting.
 
 ## Stack
 
-- **Python 3.14** — Flask API, PydanticAI agents
-- **PydanticAI** — multi-agent framework with model-agnostic LLM support
-- **Pluggable data backends** — SQLite now; ClickHouse, Elasticsearch, and others via subclassed `DataAgent`
-- **SQLite** — local persistence (pluggable; swap for any backend via config)
+- **Python 3.14** — FastAPI application, PydanticAI agents
+- **PydanticAI** — model-agnostic multi-agent framework (Anthropic, Google, OpenAI)
+- **Pluggable data backends** — SQLite (dev) and Elasticsearch today; ClickHouse next, via a `QueryEngine` implementation
+- **SQLite** — investigation persistence (pluggable via config)
 - **Logfire** — observability for agent runs, tool calls, and token usage
-- **Docker** — immutable runtime; runbook changes trigger a new build
-
-## Agents
-
-| Agent | Role |
-|---|---|
-| `AnalystAgent` | Core investigation loop — drives the ReAct cycle |
-| `DataAgent` | Translates data requests into backend queries (Clickhouse, Elasticsearch, …) |
-| `EnrichmentAgent` | Enriches IPs, domains, hashes via threat intel APIs |
-| `ReviewerAgent` | Critically re-examines findings before finalising the report *(post-MVP)* |
-| `DetectionEngineerAgent` | Drafts detection rule improvements for false positives *(post-MVP)* |
-| `ThreatHunterAgent` | Interactive ad-hoc hunting via MCP client session *(post-MVP)* |
+- **Docker** — immutable runtime; repo changes (runbooks, config) trigger a new build
 
 ## API
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/investigate` | Submit an alert, returns an `Investigation` |
+| `POST` | `/investigate` | Submit a security alert → `Investigation` (`202` fresh / `200` deduped) |
+| `POST` | `/findings` | Submit a vulnerability finding → `Investigation` (`202` / `200`) |
 | `GET` | `/investigations` | List all investigations |
 | `GET` | `/investigations/{id}` | Get investigation by id |
-| `GET` | `/reports` | List completed incident reports |
+| `GET` | `/reports` | List completed reports |
 | `GET` | `/reports/{id}` | Get report by investigation id |
 | `GET` | `/runbooks` | List available runbooks |
 | `GET` | `/runbooks/{name}` | Get runbook by name |
-| `POST` | `/hunt` | Interactive threat hunt *(not implemented)* |
+| `POST` | `/hunt` | Interactive threat hunt *(not yet implemented)* |
+
+## MCP server
+
+Benny exposes a Streamable HTTP MCP server at `/mcp` alongside the REST API, so LLM clients can use it directly. Tools: `list_runbooks` and `lookup_data`. On first run a bearer token is printed to stdout unless `MCP_BEARER_TOKEN` is set. See `AGENT.md` for client configuration.
 
 ## Getting started
 
 ```bash
-# Install dependencies
-make install
+make install      # install dependencies
+make seed-db      # seed data.db with synthetic security logs (SIEM)
+make run          # run the API
+make test         # run the test suite
+```
 
-# Run the API
-make run
+Seed the dev asset inventory for the Vulnerability Management module:
 
-# Run tests
-make test
+```bash
+uv run python tests/harness/seeder/asset_db.py --db-path vuln.db --reset
 ```
 
 ## Configuration
@@ -63,31 +88,34 @@ All settings are read from environment variables:
 
 | Variable | Default | Description |
 |---|---|---|
-| `AGENT_MODEL` | `google-gla:gemini-3.1-flash-lite-preview` | LLM to use for all agents |
+| `AGENT_MODEL` | `google-gla:gemini-3.1-flash-lite-preview` | LLM used by all agents |
 | `AGENT_MODEL_API_KEY` | — | API key — mapped to the correct provider env var automatically |
 | `AGENT_MAX_REQUESTS` | `15` | Hard cap on LLM requests per agent run |
 | `AGENT_MAX_DATA_REQUESTS` | `10` | Hard cap on LLM requests for DataAgent runs |
-| `DATA_BACKEND_ENGINE` | `sqlite` | Data backend (`sqlite`, …) |
-| `DATA_BACKEND_DB_PATH` | `data.db` | Path to the security log database |
-| `PERSISTENCE_ENGINE` | `sqlite` | Investigation storage backend |
-| `PERSISTENCE_DB_PATH` | `investigations.db` | Path to the investigations database |
-| `RUNBOOKS_PATH` | `runbooks` | Directory containing runbook `.md` files |
+| `DATA_BACKEND_DB_PATH` | `data.db` | SIEM log database |
+| `DATA_AGENT_NAME` | `security_logs` | Name of the SIEM data source |
+| `VULN_DB_PATH` | `vuln.db` | VM asset/vulnerability inventory database |
+| `VULN_RUNBOOKS_PATH` | `src/modules/vuln_mgmt/runbooks` | VM runbook directory |
+| `RUNBOOKS_PATH` | `src/modules/siem/runbooks` | SIEM runbook directory |
+| `PERSISTENCE_DB_PATH` | `investigations.db` | Investigation storage |
+| `MCP_BEARER_TOKEN` | *(generated)* | Bearer token for the MCP server |
+
+Optional integrations (auto-disabled when unset): `ELASTIC_HOST` / `ELASTIC_API_KEY` / `ELASTIC_INDEX_PATTERN` (Elasticsearch data source), `OKTA_DOMAIN` / `OKTA_CLIENT_ID` / `OKTA_PRIVATE_KEY` (identity capability).
 
 ## Runbooks
 
-Runbooks live in `runbooks/` as Markdown files with YAML frontmatter:
+Runbooks are Markdown files with YAML frontmatter, owned by each module:
+`src/modules/siem/runbooks/` (SIEM) and `src/modules/vuln_mgmt/runbooks/` (VM).
 
 ```markdown
 ---
 name: brute-force
 description: Investigate repeated failed authentication attempts
 ---
-
-## Instructions
 ...investigation steps...
 ```
 
-The alert's `type` field is matched against runbook names. Falls back to `generic` if no match is found.
+The input's `type` field is matched against runbook names, falling back to `generic` if no match is found.
 
 ## Development
 
@@ -96,6 +124,5 @@ make lint              # ruff check + format check
 make fmt               # auto-format
 make test-unit         # unit tests only
 make test-integration  # API + integration tests
-make seed-db           # seed data.db with synthetic security logs
 make harness           # run golden-test harness against a live LLM
 ```

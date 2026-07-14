@@ -1,3 +1,8 @@
+# okta-idp-integration Specification
+
+## Purpose
+Okta IDP integration: fetching and mapping user identity/employment context for investigations.
+## Requirements
 ### Requirement: OktaClient fetches and maps real user identity
 `OktaClient` SHALL fetch user identity from Okta's Users API (`GET /api/v1/users/{login}`) and map the response to a `UserProfile`. A second call to `GET /api/v1/users/{id}/manager` SHALL be made to resolve the manager name.
 
@@ -70,21 +75,19 @@ Field mapping SHALL follow these rules:
 ---
 
 ### Requirement: AnalystAgent.lookup_user delegates to OktaClient when configured
-`AnalystAgent` SHALL accept an optional `okta_client: OktaClient | None = None` parameter in its constructor. When `okta_client` is set and `OktaClient.get_user()` returns a `UserProfile`, `lookup_user` SHALL return that profile. When `okta_client` is `None` or `get_user()` returns `None`, `lookup_user` SHALL return the existing stub profile.
+`AnalystAgent` SHALL accept an optional `identity: IdentityCapability | None = None` parameter (replacing the former `okta_client: OktaClient | None`). Its `lookup_user` tool SHALL delegate to `IdentityCapability.lookup_user`, which returns the Okta-sourced `UserProfile` when available and `None` otherwise. The analyst SHALL NOT reference the Okta client directly — the client is wrapped by an `IdentityCapability` built at the composition root and injected via `Capabilities`.
 
-#### Scenario: Okta configured and user found
-- **WHEN** `AnalystAgent` is constructed with a non-None `okta_client` and `okta_client.get_user(username)` returns a `UserProfile`
-- **THEN** `lookup_user(username)` returns the Okta-sourced `UserProfile`
+#### Scenario: Identity configured and user found
+- **WHEN** `AnalystAgent` is constructed with an `IdentityCapability` whose backing Okta client returns a `UserProfile`
+- **THEN** `lookup_user(username)` returns that `UserProfile`
 
-#### Scenario: Okta configured but user not found
-- **WHEN** `AnalystAgent` is constructed with a non-None `okta_client` and `okta_client.get_user(username)` returns `None`
-- **THEN** `lookup_user(username)` returns the stub `UserProfile`
+#### Scenario: Identity configured but user not found
+- **WHEN** the backing Okta client returns `None`
+- **THEN** `lookup_user(username)` returns `None`
 
-#### Scenario: Okta not configured
-- **WHEN** `AnalystAgent` is constructed without an `okta_client` (default `None`)
-- **THEN** `lookup_user(username)` returns the stub `UserProfile` unchanged
-
----
+#### Scenario: Identity not configured
+- **WHEN** `AnalystAgent` is constructed without an identity capability (default `None`)
+- **THEN** `lookup_user(username)` returns `None`
 
 ### Requirement: OktaConfig holds Okta credentials
 `src/config.py` SHALL define an `OktaConfig` model with `org_url: str` (from `OKTA_ORG_URL`) and `api_token: str` (from `OKTA_API_TOKEN`). The application config SHALL include an optional `okta: OktaConfig | None` field that is `None` when either environment variable is absent.
@@ -109,3 +112,4 @@ The `Orchestrator` SHALL construct an `OktaClient` from config when `config.okta
 #### Scenario: Okta not configured at startup
 - **WHEN** the application starts without Okta environment variables
 - **THEN** `Orchestrator` passes `okta_client=None` to `AnalystAgent` and the existing stub behavior is preserved
+
