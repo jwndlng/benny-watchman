@@ -6,9 +6,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic_ai.models.test import TestModel
 
-from src.agents.analyst_agent import AnalystAgent
-from src.runbook_registry import Runbook
-from src.schemas.user_profile import UserProfile
+from src.modules.siem.analyst import AnalystAgent
+from src.core.orchestration.runbook_registry import Runbook
+from src.capabilities.identity.assessment import IdentityCapability
+from src.capabilities.identity.user_profile import UserProfile
 
 
 def _make_runbook() -> Runbook:
@@ -16,11 +17,12 @@ def _make_runbook() -> Runbook:
 
 
 def _make_analyst(okta_client=None) -> AnalystAgent:
+    identity = IdentityCapability(okta_client) if okta_client is not None else None
     return AnalystAgent(
         model=TestModel(),
         runbook=_make_runbook(),
         data_agents=[],
-        okta_client=okta_client,
+        identity=identity,
     )
 
 

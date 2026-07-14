@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from pydantic_ai.models.test import TestModel
 
-from src.agents.data.elastic_data_agent import ElasticDataAgent, _index_prefix
+from src.capabilities.data.elastic_data_agent import ElasticDataAgent, _index_prefix
 from src.engines.base import ColumnInfo, TableInfo
 
 
@@ -42,7 +42,7 @@ def test_prefix_unchanged_for_hidden_index():
 @pytest.fixture
 def agent():
     with patch(
-        "src.agents.data.elastic_data_agent.ElasticsearchEngine"
+        "src.capabilities.data.elastic_data_agent.ElasticsearchEngine"
     ) as mock_engine_cls:
         mock_engine = AsyncMock()
         mock_engine_cls.return_value = mock_engine

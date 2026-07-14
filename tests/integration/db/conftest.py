@@ -1,7 +1,7 @@
 import pytest
 from pydantic_ai.models.test import TestModel
 
-from src.agents.data.sqlite_data_agent import SQLiteDataAgent
+from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
 
 
 @pytest.fixture

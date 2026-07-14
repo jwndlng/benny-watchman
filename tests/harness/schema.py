@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel
 
-from src.schemas.incident_report import Severity, Verdict
+from src.modules.siem.incident_report import Severity, Verdict
 
 
 class CaseResult(BaseModel):

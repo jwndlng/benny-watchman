@@ -5,22 +5,24 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import FastAPI
-from mcp.server.fastmcp import FastMCP
 
-from src.agents.data.elastic_data_agent import ElasticDataAgent
-from src.agents.data.sqlite_data_agent import SQLiteDataAgent
 from src.api.routes.hunt import router as hunt_router
 from src.api.routes.investigate import router as investigate_router
 from src.api.routes.investigations import router as investigations_router
 from src.api.routes.reports import router as reports_router
 from src.api.routes.runbooks import router as runbooks_router
+from src.capabilities.data.elastic_data_agent import ElasticDataAgent
+from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
+from src.capabilities.identity.assessment import IdentityCapability
+from src.capabilities.identity.okta import OktaClient
 from src.config import Config, config
-from src.integrations.okta import OktaClient
-from src.mcp_auth import BearerAuthMiddleware
-from src.mcp_tools import register_tools
+from src.core.orchestration.capabilities import Capabilities
+from src.core.orchestration.module_registry import ModuleRegistry
+from src.core.orchestration.orchestrator import OrchestratorAgent
+from src.core.orchestration.runbook_registry import RunbookRegistry
+from src.mcp.server.app import MCPServer
 from src.models import ModelFactory
-from src.orchestrator import Orchestrator
-from src.runbook_registry import RunbookRegistry
+from src.modules.siem.module import SIEMModule
 
 
 def create_app(cfg: Config = config) -> FastAPI:
@@ -30,16 +32,12 @@ def create_app(cfg: Config = config) -> FastAPI:
     if not cfg.mcp_bearer_token:
         print(f"MCP bearer token: {mcp_token}", flush=True)
 
-    # streamable_http_path="/" so the sub-app handles "/" after FastAPI strips the
-    # "/mcp" mount prefix. Calling streamable_http_app() here initialises the
-    # session manager so we can start it inside FastAPI's own lifespan below.
-    mcp = FastMCP("benny", streamable_http_path="/")
-    mcp_asgi_app = mcp.streamable_http_app()
+    mcp_server = MCPServer()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """Initialise shared state on startup."""
-        async with mcp.session_manager.run():
+        async with mcp_server.session():
             registry = RunbookRegistry()
             registry.load(cfg.runbooks.path)
 
@@ -78,15 +76,21 @@ def create_app(cfg: Config = config) -> FastAPI:
             if elastic_agent is not None:
                 data_agents.append(elastic_agent)
 
-            register_tools(mcp, data_agents, registry)
+            mcp_server.register(data_agents, registry)
 
             persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
-            app.state.orchestrator = Orchestrator(
-                registry,
-                persistence,
-                model=cfg.agent.model,
-                data_agents=data_agents,
-                okta_client=okta_client,
+
+            capabilities = Capabilities(
+                data={agent.name: agent for agent in data_agents},
+                identity=IdentityCapability(okta_client),
+            )
+            module_registry = ModuleRegistry()
+            module_registry.register(
+                SIEMModule(model=cfg.agent.model, runbooks=registry)
+            )
+
+            app.state.orchestrator = OrchestratorAgent(
+                module_registry, persistence, capabilities
             )
             app.state.persistence = persistence
             app.state.registry = registry
@@ -101,6 +105,6 @@ def create_app(cfg: Config = config) -> FastAPI:
     app.include_router(reports_router)
     app.include_router(runbooks_router)
     app.include_router(hunt_router)
-    app.mount("/mcp", BearerAuthMiddleware(mcp_asgi_app, mcp_token))
+    mcp_server.mount(app, mcp_token)
 
     return app

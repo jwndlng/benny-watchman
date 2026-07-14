@@ -1,8 +1,8 @@
 from datetime import datetime
 import pytest
 from pydantic import ValidationError
-from src.schemas.alert import Alert
-from src.schemas.incident_report import IncidentReport, Severity, Verdict
+from src.modules.siem.alert import Alert
+from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
 
 
 VALID_ALERT = {

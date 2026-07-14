@@ -1,20 +1,25 @@
 """End-to-end investigation test — requires a real LLM API key.
 
-Seeds a synthetic DB, fires an alert through the Orchestrator,
+Seeds a synthetic DB, fires an alert through the OrchestratorAgent + SIEM module,
 and asserts a valid IncidentReport comes back.
 
 Run: AGENT_MODEL_API_KEY=... make test-e2e
 """
 
+import asyncio
 import os
 
 import pytest
 
+from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
+from src.core.orchestration.capabilities import Capabilities
+from src.core.orchestration.module_registry import ModuleRegistry
+from src.core.orchestration.orchestrator import OrchestratorAgent
+from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.models import ModelFactory
-from src.orchestrator import Orchestrator
-from src.runbook_registry import RunbookRegistry
-from src.schemas.alert import Alert, Severity
-from src.schemas.incident_report import IncidentReport
+from src.modules.siem.alert import Alert, Severity
+from src.modules.siem.incident_report import IncidentReport
+from src.modules.siem.module import SIEMModule
 from src.schemas.investigation import InvestigationStatus
 from tests.harness.seeder.synthetic_db import (
     BRUTE_FORCE_ATTACKER_IP,
@@ -26,20 +31,26 @@ _HAS_API_KEY = bool(os.environ.get("AGENT_MODEL_API_KEY"))
 
 @pytest.fixture
 def orchestrator(tmp_path):
-    """Wire up a real Orchestrator with a seeded data DB."""
+    """Wire up a real OrchestratorAgent (SIEM module) with a seeded data DB."""
     data_db = str(tmp_path / "data.db")
     SyntheticDataset(rows=200, seed=42).load(data_db)
 
     inv_db = str(tmp_path / "investigations.db")
     persistence = ModelFactory.investigations(db_path=inv_db)
 
-    registry = RunbookRegistry()
-    registry.load("runbooks")
+    runbooks = RunbookRegistry()
+    runbooks.load("src/modules/siem/runbooks")
 
     model = os.environ.get("AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview")
-    os.environ["DATA_BACKEND_DB_PATH"] = data_db
 
-    return Orchestrator(registry, persistence, model=model)
+    data_agent = SQLiteDataAgent(name="security_logs", model=model, db_path=data_db)
+    asyncio.run(data_agent.initialize())
+    capabilities = Capabilities(data={data_agent.name: data_agent})
+
+    registry = ModuleRegistry()
+    registry.register(SIEMModule(model=model, runbooks=runbooks))
+
+    return OrchestratorAgent(registry, persistence, capabilities)
 
 
 @pytest.mark.e2e
@@ -56,7 +67,7 @@ def test_brute_force_investigation(orchestrator):
         timestamp="2026-03-25T00:00:00Z",
     )
 
-    investigation = orchestrator.investigate(alert)
+    investigation = orchestrator.handle(alert.model_dump(), hint="siem")
 
     assert investigation is not None
     assert investigation.status == InvestigationStatus.COMPLETE
@@ -87,7 +98,7 @@ def test_generic_fallback_investigation(orchestrator):
         timestamp="2026-03-25T00:00:00Z",
     )
 
-    investigation = orchestrator.investigate(alert)
+    investigation = orchestrator.handle(alert.model_dump(), hint="siem")
 
     assert investigation is not None
     assert investigation.status == InvestigationStatus.COMPLETE

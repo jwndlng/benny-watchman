@@ -3,8 +3,8 @@
 import pytest
 from pydantic_ai.models.test import TestModel
 
-from src.agents.data.sqlite_data_agent import SQLiteDataAgent
-from src.runbook_registry import Runbook
+from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
+from src.core.orchestration.runbook_registry import Runbook
 
 
 # ---------------------------------------------------------------------------
@@ -60,7 +60,7 @@ async def test_initialize_builds_routing_description(seeded_db):
 
 
 def test_single_data_agent_registers_query_tool(seeded_db):
-    from src.agents.analyst_agent import AnalystAgent
+    from src.modules.siem.analyst import AnalystAgent
 
     analyst = AnalystAgent(
         model=TestModel(),
@@ -71,7 +71,7 @@ def test_single_data_agent_registers_query_tool(seeded_db):
 
 
 def test_multiple_data_agents_register_separate_tools(seeded_db, tmp_path):
-    from src.agents.analyst_agent import AnalystAgent
+    from src.modules.siem.analyst import AnalystAgent
 
     db2 = str(tmp_path / "second.db")
     agent_b = SQLiteDataAgent(name="network_siem", model=TestModel(), db_path=db2)
@@ -96,7 +96,7 @@ def test_multiple_data_agents_register_separate_tools(seeded_db, tmp_path):
 
 
 def test_duplicate_data_agent_names_raise(seeded_db):
-    from src.agents.analyst_agent import AnalystAgent
+    from src.modules.siem.analyst import AnalystAgent
 
     with pytest.raises(ValueError, match="Duplicate DataAgent names"):
         AnalystAgent(
