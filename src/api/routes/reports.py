@@ -10,9 +10,7 @@ router = APIRouter()
 def list_reports(request: Request) -> JSONResponse:
     """Return all incident reports."""
     investigations = request.app.state.persistence.list()
-    reports = [
-        i.report.model_dump(mode="json") for i in investigations if i.report is not None
-    ]
+    reports = [i.report for i in investigations if i.report is not None]
     return JSONResponse(reports)
 
 
@@ -22,4 +20,4 @@ def get_report(investigation_id: str, request: Request) -> JSONResponse:
     investigation = request.app.state.persistence.get(investigation_id)
     if investigation is None or investigation.report is None:
         return JSONResponse({"error": "Not found"}, status_code=404)
-    return JSONResponse(investigation.report.model_dump(mode="json"))
+    return JSONResponse(investigation.report)

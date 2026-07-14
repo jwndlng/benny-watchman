@@ -1,51 +1,31 @@
 """Autonomously investigates alerts using a data sufficiency loop.
 
-Bootstrapped by the Orchestrator with a Runbook and a list of pre-initialized
-DataAgents. Delegates data retrieval to DataAgents via dynamically registered
-query tools, one per source. Iterates until confident in a conclusion or the
-tool call limit is reached.
+Bootstrapped by the SIEM module with a Runbook and pre-initialized DataAgents.
+Delegates data retrieval to DataAgents via dynamically registered query tools,
+one per source. Iterates until confident in a conclusion or the tool call limit
+is reached.
 """
 
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-import logfire
 from pydantic import BaseModel, Field
-from pydantic_ai import AgentRunResult
 
+from src.capabilities.data.base_data_agent import BaseDataAgent
+from src.capabilities.data.query_tool import make_query_tool
+from src.capabilities.identity.user_profile import UserProfile
 from src.core.agents.base_agent import BaseAgent
-from src.capabilities.data.base_data_agent import BaseDataAgent, DataModel
 from src.core.orchestration.runbook_registry import Runbook
 from src.modules.siem.alert import Alert
 from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
-from src.capabilities.identity.user_profile import UserProfile
+from src.schemas.outcome import Outcome
 
 if TYPE_CHECKING:
     from src.capabilities.identity.assessment import IdentityCapability
-
-
-def _make_query_tool(data_agent: BaseDataAgent) -> Callable:
-    """Create a named async tool function that delegates to the given DataAgent.
-
-    The function name becomes the PydanticAI tool name (query_{agent.name})
-    and the docstring becomes the tool description seen by the LLM.
-    This factory is the deliberate exception to the no-closures rule — dynamic
-    tool names cannot be expressed as fixed methods on AnalystAgent.
-    """
-
-    async def query_fn(request: str) -> DataModel:
-        with logfire.span(f"query_{data_agent.name}", request=request):
-            result: AgentRunResult[DataModel] = await data_agent.run(request)
-            return result.output
-
-    query_fn.__name__ = f"query_{data_agent.name}"
-    query_fn.__doc__ = data_agent.routing_description
-    return query_fn
 
 
 class AnalystModel(BaseModel):
@@ -108,7 +88,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
             name=f"AnalystAgent({runbook.name})",
         )
         for agent in data_agents:
-            self.agent.tool_plain(_make_query_tool(agent))
+            self.agent.tool_plain(make_query_tool(agent))
         self.agent.tool_plain(self.lookup_user)
 
     async def lookup_user(self, username: str) -> UserProfile | None:
@@ -149,7 +129,8 @@ class AnalystAgent(BaseAgent[AnalystModel]):
             severity=report.severity,
             verdict=report.verdict,
             runbook=self._runbook.name,
+            outcome=Outcome(disposition=m.verdict, priority=m.severity),
             created_at=now,
             completed_at=now,
-            report=report,
+            report=report.model_dump(mode="json"),
         )

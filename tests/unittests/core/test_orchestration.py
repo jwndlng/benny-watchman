@@ -19,6 +19,18 @@ VALID_ALERT = {
     "timestamp": "2026-03-13T10:00:00Z",
 }
 
+VALID_FINDING = {
+    "id": "finding-001",
+    "type": "remote-code-execution",
+    "cve": "CVE-2024-1234",
+    "asset": "host-01",
+    "cvss": 9.8,
+    "title": "RCE in libfoo",
+    "description": "Unauthenticated RCE in libfoo < 1.2.3",
+    "source": "nessus",
+    "detected_at": "2026-03-13T10:00:00Z",
+}
+
 
 class _StubInput:
     def __init__(self, **kw: object) -> None:
@@ -117,14 +129,34 @@ def test_orchestrator_dedup_returns_existing_without_rerun():
 
 
 def test_siem_module_accepts_valid_alert_only():
-    runbooks = MagicMock()
-    module = SIEMModule(model="test:stub", runbooks=runbooks)
+    module = SIEMModule(model="test:stub", runbooks=MagicMock(), data_sources=[])
     assert module.accepts(VALID_ALERT) is True
     assert module.accepts({"id": "only"}) is False
+    assert module.accepts(VALID_FINDING) is False  # not alert-shaped
 
 
 def test_siem_module_dedup_key_is_alert_id():
     from src.modules.siem.alert import Alert
 
-    module = SIEMModule(model="test:stub", runbooks=MagicMock())
+    module = SIEMModule(model="test:stub", runbooks=MagicMock(), data_sources=[])
     assert module.dedup_key(Alert(**VALID_ALERT)) == "alert-001"
+
+
+def test_vuln_module_accepts_finding_only():
+    from src.modules.vuln_mgmt.module import VulnModule
+
+    module = VulnModule(
+        model="test:stub", runbooks=MagicMock(), intel=MagicMock(), data_sources=[]
+    )
+    assert module.accepts(VALID_FINDING) is True
+    assert module.accepts(VALID_ALERT) is False  # missing cve/asset/cvss
+
+
+def test_vuln_module_dedup_key_is_cve_asset_cvss():
+    from src.modules.vuln_mgmt.finding import Finding
+    from src.modules.vuln_mgmt.module import VulnModule
+
+    module = VulnModule(
+        model="test:stub", runbooks=MagicMock(), intel=MagicMock(), data_sources=[]
+    )
+    assert module.dedup_key(Finding(**VALID_FINDING)) == "CVE-2024-1234:host-01:9.8"

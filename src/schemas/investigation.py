@@ -1,11 +1,17 @@
-"""Investigation process entity — created when an alert is submitted."""
+"""Investigation process entity — the domain-agnostic persistence envelope.
+
+Created when an alert or finding is submitted. The `report` is an opaque,
+serialized domain payload (each module owns its typed report); the `outcome`
+is the generic cross-domain summary. This module imports no `src.modules.*`
+type, so persistence stays decoupled from any vertical.
+"""
 
 from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
+from src.schemas.outcome import Outcome
 
 
 class InvestigationStatus(str, Enum):
@@ -18,7 +24,7 @@ class InvestigationStatus(str, Enum):
 
 
 class Investigation(BaseModel):
-    """Investigation process entity — created when an alert is submitted."""
+    """Investigation process entity — domain-agnostic envelope."""
 
     id: str = Field(description="Unique investigation identifier")
     key: str = Field(
@@ -28,23 +34,24 @@ class Investigation(BaseModel):
     module: str = Field(
         default="", description="Analyst module that produced this investigation"
     )
-    alert_id: str = Field(
-        description="ID of the alert that triggered this investigation"
-    )
+    alert_id: str = Field(description="ID of the input (alert or finding) investigated")
     status: InvestigationStatus = Field(description="Current investigation status")
-    severity: Severity | None = Field(
+    severity: str | None = Field(
         default=None, description="Assessed severity, set on completion"
     )
-    verdict: Verdict | None = Field(
+    verdict: str | None = Field(
         default=None, description="Investigation verdict, set on completion"
     )
     runbook: str | None = Field(
         default=None, description="Runbook used for this investigation"
     )
+    outcome: Outcome | None = Field(
+        default=None, description="Generic cross-domain summary, set on completion"
+    )
     created_at: datetime = Field(description="When the investigation was created")
     completed_at: datetime | None = Field(
         default=None, description="When the investigation completed"
     )
-    report: IncidentReport | None = Field(
-        default=None, description="Full incident report, set on completion"
+    report: dict[str, object] | None = Field(
+        default=None, description="Serialized domain report payload, set on completion"
     )

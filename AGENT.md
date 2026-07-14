@@ -107,7 +107,7 @@ Alternatively register it in any other LLM agent such as Antigravity CLI (`~/.ge
 Source is organized along a horizontal/vertical seam (see `openspec/changes/modular-soc-architecture`):
 - `src/core/` — domain-agnostic framework and orchestration (`core/agents/base_agent.py`, `core/orchestration/`)
 - `src/capabilities/` — cross-cutting horizontals shared by all domains: `data/` (DataAgents), `identity/` (Okta), `enrichment/`
-- `src/modules/` — per-domain verticals; `modules/siem/` holds the SIEM analyst, detection engineer, `Alert`/`IncidentReport` schemas, and `runbooks/`
+- `src/modules/` — per-domain verticals; `modules/siem/` (SIEM analyst, `Alert`/`IncidentReport`, `runbooks/`) and `modules/vuln_mgmt/` (VM analyst, `Finding`/`VulnTriageReport`, `runbooks/`, vuln-intel tool). Each module implements the `AnalystModule` contract and selects its data source(s) from `Capabilities` by name.
 - `src/mcp/server/` — Benny AS an MCP server (FastMCP assembly, tools, auth); `src/mcp/clients/` — Benny AS a client of external MCP servers (e.g. ClickHouse)
 - `src/engines/`, `src/config.py`, `src/models.py`, `src/utils/` — shared infrastructure
 

@@ -6,6 +6,7 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 
+from src.api.routes.findings import router as findings_router
 from src.api.routes.hunt import router as hunt_router
 from src.api.routes.investigate import router as investigate_router
 from src.api.routes.investigations import router as investigations_router
@@ -23,6 +24,8 @@ from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.mcp.server.app import MCPServer
 from src.models import ModelFactory
 from src.modules.siem.module import SIEMModule
+from src.modules.vuln_mgmt.intel import VulnIntelCapability
+from src.modules.vuln_mgmt.module import VulnModule
 
 
 def create_app(cfg: Config = config) -> FastAPI:
@@ -72,21 +75,45 @@ def create_app(cfg: Config = config) -> FastAPI:
                 else None
             )
 
-            data_agents = [data_agent]
+            log_agents = [data_agent]
             if elastic_agent is not None:
-                data_agents.append(elastic_agent)
+                log_agents.append(elastic_agent)
 
-            mcp_server.register(data_agents, registry)
+            asset_agent = SQLiteDataAgent(
+                name=cfg.vuln.name,
+                model=cfg.agent.model,
+                db_path=cfg.vuln.db_path,
+            )
+            await asset_agent.initialize()
+
+            all_agents = [*log_agents, asset_agent]
+            mcp_server.register(all_agents, registry)
 
             persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
 
             capabilities = Capabilities(
-                data={agent.name: agent for agent in data_agents},
+                data={agent.name: agent for agent in all_agents},
                 identity=IdentityCapability(okta_client),
             )
+
+            vuln_runbooks = RunbookRegistry()
+            vuln_runbooks.load(cfg.vuln.runbooks_path)
+
             module_registry = ModuleRegistry()
             module_registry.register(
-                SIEMModule(model=cfg.agent.model, runbooks=registry)
+                SIEMModule(
+                    model=cfg.agent.model,
+                    runbooks=registry,
+                    data_sources=[a.name for a in log_agents],
+                )
+            )
+            module_registry.register(
+                VulnModule(
+                    model=cfg.agent.model,
+                    runbooks=vuln_runbooks,
+                    intel=VulnIntelCapability(),
+                    data_sources=[cfg.vuln.name],
+                )
             )
 
             app.state.orchestrator = OrchestratorAgent(
@@ -101,6 +128,7 @@ def create_app(cfg: Config = config) -> FastAPI:
 
     app = FastAPI(title="Benny Watchman", lifespan=lifespan)
     app.include_router(investigate_router)
+    app.include_router(findings_router)
     app.include_router(investigations_router)
     app.include_router(reports_router)
     app.include_router(runbooks_router)
