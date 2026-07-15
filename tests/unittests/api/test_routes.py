@@ -156,6 +156,13 @@ def test_get_runbook_not_found(client):
     assert response.status_code == 404
 
 
+# POST /triage/run
+def test_triage_run_over_empty_platform(client):
+    response = client.post("/triage/run")
+    assert response.status_code == 200
+    assert response.json() == {"triaged": 0}
+
+
 # POST /hunt
 def test_hunt_not_implemented(client):
     response = client.post("/hunt")

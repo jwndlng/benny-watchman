@@ -23,9 +23,10 @@ Benny is organized along a **horizontal / vertical** seam so new triage domains 
   - **Identity** — user, role, and access context (Okta)
   - **Enrichment** — threat intel for indicators / CVEs
 - **Core** — `BaseAgent` framework, `OrchestratorAgent` (routing + idempotency), `ModuleRegistry`, and the `Capabilities` container.
+- **Platforms** — the operational systems Benny works *within* (`TriagePlatform`): they supply alerts to triage and receive his actions (comment, disposition, case, status). A triage-loop pulls open alerts → investigates → writes back (case-always; auto-closes benign, escalates real). An in-memory reference impl ships today; Elastic Security is a follow-up.
 - **MCP server** — exposes Benny to LLM clients (Claude Code, Antigravity, …) at `/mcp`.
 
-Adding a triage domain = adding a `src/modules/<domain>/` folder that implements the `AnalystModule` contract. The layout mirrors this seam: `src/core/`, `src/capabilities/`, `src/modules/`, `src/mcp/{server,clients}/`.
+Adding a triage domain = adding a `src/modules/<domain>/` folder that implements the `AnalystModule` contract. The layout mirrors this seam: `src/core/`, `src/capabilities/`, `src/modules/`, `src/platforms/`, `src/mcp/{server,clients}/`.
 
 ## Components
 
@@ -61,6 +62,7 @@ Adding a triage domain = adding a `src/modules/<domain>/` folder that implements
 | `GET` | `/reports/{id}` | Get report by investigation id |
 | `GET` | `/runbooks` | List available runbooks |
 | `GET` | `/runbooks/{name}` | Get runbook by name |
+| `POST` | `/triage/run` | Run one triage-loop pass over the configured platform (pull → investigate → write-back) |
 | `POST` | `/hunt` | Interactive threat hunt *(not yet implemented)* |
 
 ## MCP server
