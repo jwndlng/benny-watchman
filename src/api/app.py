@@ -12,6 +12,7 @@ from src.api.routes.investigate import router as investigate_router
 from src.api.routes.investigations import router as investigations_router
 from src.api.routes.reports import router as reports_router
 from src.api.routes.runbooks import router as runbooks_router
+from src.api.routes.triage import router as triage_router
 from src.capabilities.data.elastic_data_agent import ElasticDataAgent
 from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
 from src.capabilities.identity.assessment import IdentityCapability
@@ -24,6 +25,7 @@ from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.mcp.server.app import MCPServer
 from src.models import ModelFactory
 from src.modules.siem.module import SIEMModule
+from src.platforms.memory import InMemoryTriagePlatform
 from src.modules.vuln_mgmt.intel import VulnIntelCapability
 from src.modules.vuln_mgmt.module import VulnModule
 
@@ -121,6 +123,8 @@ def create_app(cfg: Config = config) -> FastAPI:
             )
             app.state.persistence = persistence
             app.state.registry = registry
+            # Dev/reference platform; a real one (e.g. ElasticSecurityPlatform) is wired later.
+            app.state.triage_platform = InMemoryTriagePlatform(items=[])
             yield
 
             if elastic_agent is not None:
@@ -132,6 +136,7 @@ def create_app(cfg: Config = config) -> FastAPI:
     app.include_router(investigations_router)
     app.include_router(reports_router)
     app.include_router(runbooks_router)
+    app.include_router(triage_router)
     app.include_router(hunt_router)
     mcp_server.mount(app, mcp_token)
 

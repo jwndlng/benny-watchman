@@ -108,6 +108,7 @@ Source is organized along a horizontal/vertical seam (see `openspec/changes/modu
 - `src/core/` — domain-agnostic framework and orchestration (`core/agents/base_agent.py`, `core/orchestration/`)
 - `src/capabilities/` — cross-cutting horizontals shared by all domains: `data/` (DataAgents), `identity/` (Okta), `enrichment/`
 - `src/modules/` — per-domain verticals; `modules/siem/` (SIEM analyst, `Alert`/`IncidentReport`, `runbooks/`) and `modules/vuln_mgmt/` (VM analyst, `Finding`/`VulnTriageReport`, `runbooks/`, vuln-intel tool). Each module implements the `AnalystModule` contract and selects its data source(s) from `Capabilities` by name.
+- `src/platforms/` — the **TriagePlatform** primitive: the operational I/O boundary Benny works within (intake + tracking + write-back). `base.py` (the `TriagePlatform` Protocol + `TriageStatus`), `loop.py` (`run_once` triage-loop), `memory.py` (in-memory reference impl). Concrete platforms (Elastic Security) are follow-ups. Depends inward on `core`/`schemas` only — `core/` never imports `platforms/`.
 - `src/mcp/server/` — Benny AS an MCP server (FastMCP assembly, tools, auth); `src/mcp/clients/` — Benny AS a client of external MCP servers (e.g. ClickHouse)
 - `src/engines/`, `src/config.py`, `src/models.py`, `src/utils/` — shared infrastructure
 
@@ -116,6 +117,7 @@ Source is organized along a horizontal/vertical seam (see `openspec/changes/modu
 - `OrchestratorAgent` (`src/core/orchestration/orchestrator.py`) exposes `handle(raw, hint=None)`: an explicit `hint` dispatches directly (no LLM); otherwise it resolves a module via `accepts()`. Routes to one module today; the return type leaves room for cross-module synthesis.
 - `ModuleRegistry` holds modules (domain-level); `RunbookRegistry` selects playbooks *within* a module — two registries at two levels.
 - `Capabilities` (`src/core/orchestration/capabilities.py`) is a typed container of shared instances (data agents, identity), built once at the composition root (`api/app.py`) and injected into `investigate()`. `SIEMModule` (`src/modules/siem/module.py`) is the first module.
+- The **triage-loop** (`src/platforms/loop.py`, `run_once`) closes the loop: fetch open items from a `TriagePlatform` → `handle()` → write back (case-always; auto-close benign, escalate real). It lives in `platforms/`, driven by the generic `outcome`, so `core/` stays unaware of it. Trigger: `POST /triage/run`.
 
 ## Key Files
 - `src/modules/siem/runbooks/` — SIEM runbook definitions (YAML frontmatter + Markdown)
