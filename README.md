@@ -23,7 +23,7 @@ Benny is organized along a **horizontal / vertical** seam so new triage domains 
   - **Identity** — user, role, and access context (Okta)
   - **Enrichment** — threat intel for indicators / CVEs
 - **Core** — `BaseAgent` framework, `OrchestratorAgent` (routing + idempotency), `ModuleRegistry`, and the `Capabilities` container.
-- **Platforms** — the operational systems Benny works *within* (`TriagePlatform`): they supply alerts to triage and receive his actions (comment, disposition, case, status). A triage-loop pulls open alerts → investigates → writes back (case-always; auto-closes benign, escalates real). An in-memory reference impl ships today; Elastic Security is a follow-up.
+- **Platforms** — the operational systems Benny works *within* (`TriagePlatform`): they supply alerts to triage and receive his actions (comment, disposition, case, status). A triage-loop pulls open alerts → investigates → writes back (case-always; auto-closes benign, escalates real). Implementations: an in-memory reference platform (dev) and `ElasticSecurityPlatform` (Elastic Security, via the Kibana API). Selected by config; triggered by `POST /triage/run`.
 - **MCP server** — exposes Benny to LLM clients (Claude Code, Antigravity, …) at `/mcp`.
 
 Adding a triage domain = adding a `src/modules/<domain>/` folder that implements the `AnalystModule` contract. The layout mirrors this seam: `src/core/`, `src/capabilities/`, `src/modules/`, `src/platforms/`, `src/mcp/{server,clients}/`.
@@ -102,7 +102,7 @@ All settings are read from environment variables:
 | `PERSISTENCE_DB_PATH` | `investigations.db` | Investigation storage |
 | `MCP_BEARER_TOKEN` | *(generated)* | Bearer token for the MCP server |
 
-Optional integrations (auto-disabled when unset): `ELASTIC_HOST` / `ELASTIC_API_KEY` / `ELASTIC_INDEX_PATTERN` (Elasticsearch data source), `OKTA_DOMAIN` / `OKTA_CLIENT_ID` / `OKTA_PRIVATE_KEY` (identity capability).
+Optional integrations (auto-disabled when unset): `ELASTIC_HOST` / `ELASTIC_API_KEY` / `ELASTIC_INDEX_PATTERN` (Elasticsearch data source), `KIBANA_URL` / `KIBANA_API_KEY` / `KIBANA_CASE_OWNER` (the Elastic triage platform — API key scoped to alerts-read + signal-status-write + cases, never remediation), `OKTA_DOMAIN` / `OKTA_CLIENT_ID` / `OKTA_PRIVATE_KEY` (identity capability).
 
 ## Runbooks
 

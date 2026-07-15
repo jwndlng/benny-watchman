@@ -25,9 +25,22 @@ from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.mcp.server.app import MCPServer
 from src.models import ModelFactory
 from src.modules.siem.module import SIEMModule
+from src.platforms.base import TriagePlatform
+from src.platforms.elastic import ElasticSecurityPlatform
 from src.platforms.memory import InMemoryTriagePlatform
 from src.modules.vuln_mgmt.intel import VulnIntelCapability
 from src.modules.vuln_mgmt.module import VulnModule
+
+
+def _select_triage_platform(cfg: Config) -> TriagePlatform:
+    """Elastic when Kibana is configured, else the in-memory reference platform."""
+    if cfg.kibana is not None:
+        return ElasticSecurityPlatform(
+            kibana_url=cfg.kibana.url,
+            api_key=cfg.kibana.api_key,
+            case_owner=cfg.kibana.case_owner,
+        )
+    return InMemoryTriagePlatform(items=[])
 
 
 def create_app(cfg: Config = config) -> FastAPI:
@@ -123,8 +136,7 @@ def create_app(cfg: Config = config) -> FastAPI:
             )
             app.state.persistence = persistence
             app.state.registry = registry
-            # Dev/reference platform; a real one (e.g. ElasticSecurityPlatform) is wired later.
-            app.state.triage_platform = InMemoryTriagePlatform(items=[])
+            app.state.triage_platform = _select_triage_platform(cfg)
             yield
 
             if elastic_agent is not None:
