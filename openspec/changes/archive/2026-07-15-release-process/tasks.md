@@ -27,9 +27,9 @@
 
 ## 6. Verification
 
-- [ ] 6.1 Open a test PR with a non-conventional title and confirm the title check fails
-- [ ] 6.2 Open a test PR with a conventional title (e.g., `chore: ...`) and confirm it's auto-labeled and the check passes
-- [ ] 6.3 Merge to `main` and confirm a draft release is created/updated with correctly categorized changelog entries
-- [ ] 6.4 Confirm `ghcr.io/jwndlng/benny-watchman:latest` is built and pushed on the `main` push
-- [ ] 6.5 Publish the draft release and confirm: version-tagged image is pushed, provenance attestation succeeds, and release notes get the `docker pull` section
-- [ ] 6.6 Manually verify (and if needed, flip) GHCR package visibility for `benny-watchman` — first-time setting, not automatable
+- [ ] 6.1 Open a test PR with a non-conventional title and confirm the title check fails (never exercised — PR #10's title was already conventional, so only the pass path has run)
+- [x] 6.2 Open a test PR with a conventional title (e.g., `chore: ...`) and confirm it's auto-labeled and the check passes — verified via PR #10 (`feat(ci): ...`), auto-labeled `enhancement`, check passed
+- [x] 6.3 Merge to `main` and confirm a draft release is created/updated with correctly categorized changelog entries — verified: PR #10 merged, `Draft Release` workflow succeeded, `v0.1.0` draft created
+- [x] 6.4 Confirm `ghcr.io/jwndlng/benny-watchman:latest` is built and pushed on the `main` push — verified: `Publish Docker image` run succeeded on the `main` push
+- [x] 6.5 Publish the draft release and confirm: version-tagged image is pushed, provenance attestation succeeds, and release notes get the `docker pull` section — verified: `v0.1.0` published, `Publish Docker image` + `Release` runs succeeded, release body has the appended `docker pull` section
+- [ ] 6.6 Manually verify (and if needed, flip) GHCR package visibility for `benny-watchman` — first-time setting, not automatable (not checked — requires registry access this session's `gh` token doesn't have)
