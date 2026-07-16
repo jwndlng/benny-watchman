@@ -17,7 +17,7 @@ from src.capabilities.subagents.data.query_tool import make_query_tool
 from src.core.agents.base_agent import BaseAgent
 from src.core.orchestration.runbook_registry import Runbook
 from src.modules.vuln_mgmt.schemas.finding import Finding
-from src.modules.vuln_mgmt.tools.intel import VulnIntelCapability
+from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
 from src.modules.vuln_mgmt.schemas.report import VulnTriageReport
 from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
@@ -62,7 +62,7 @@ class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
         model: str,
         runbook: Runbook,
         data_agents: list[BaseDataAgent],
-        intel: VulnIntelCapability,
+        intel: VulnIntelTool,
     ) -> None:
         self._runbook = runbook
         names = [a.name for a in data_agents]

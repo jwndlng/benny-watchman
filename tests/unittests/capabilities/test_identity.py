@@ -1,11 +1,11 @@
-"""Unit tests for the IdentityCapability composite lookup."""
+"""Unit tests for the IdentityTool composite lookup."""
 
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.capabilities.tools.identity.assessment import IdentityCapability
+from src.capabilities.tools.identity.assessment import IdentityTool
 from src.capabilities.tools.identity.user_profile import UserProfile
 
 
@@ -34,7 +34,7 @@ async def test_lookup_user_delegates_to_okta():
     okta = MagicMock()
     okta.get_user = AsyncMock(return_value=profile)
 
-    result = await IdentityCapability(okta).lookup_user("jane.doe")
+    result = await IdentityTool(okta).lookup_user("jane.doe")
 
     okta.get_user.assert_called_once_with("jane.doe")
     assert result is profile
@@ -42,4 +42,4 @@ async def test_lookup_user_delegates_to_okta():
 
 @pytest.mark.anyio
 async def test_lookup_user_returns_none_without_client():
-    assert await IdentityCapability(None).lookup_user("jane.doe") is None
+    assert await IdentityTool(None).lookup_user("jane.doe") is None

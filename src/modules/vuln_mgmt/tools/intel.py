@@ -9,7 +9,7 @@ CVE/EPSS/KEV API clients are a follow-up.
 from __future__ import annotations
 
 
-class VulnIntelCapability:
+class VulnIntelTool:
     """Composite CVE/EPSS/KEV enrichment. Dev stub — real API clients deferred."""
 
     async def enrich(self, cve: str) -> dict[str, object]:

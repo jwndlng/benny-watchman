@@ -21,7 +21,7 @@ from src.adapters.api.routes.runbooks import router as runbooks_router
 from src.adapters.api.routes.triage import router as triage_router
 from src.capabilities.subagents.data.elastic_data_agent import ElasticDataAgent
 from src.capabilities.subagents.data.sqlite_data_agent import SQLiteDataAgent
-from src.capabilities.tools.identity.assessment import IdentityCapability
+from src.capabilities.tools.identity.assessment import IdentityTool
 from src.capabilities.tools.identity.okta import OktaClient
 from src.config import Config, config
 from src.core.orchestration.capabilities import Capabilities
@@ -34,7 +34,7 @@ from src.modules.siem.module import SIEMModule
 from src.adapters.platforms.base import TriagePlatform
 from src.adapters.platforms.elastic import ElasticSecurityPlatform
 from src.adapters.platforms.memory import InMemoryTriagePlatform
-from src.modules.vuln_mgmt.tools.intel import VulnIntelCapability
+from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
 from src.modules.vuln_mgmt.module import VulnModule
 
 logger = logging.getLogger(__name__)
@@ -129,7 +129,7 @@ def create_app(cfg: Config = config) -> FastAPI:
 
             capabilities = Capabilities(
                 data={agent.name: agent for agent in all_agents},
-                identity=IdentityCapability(okta_client),
+                identity=IdentityTool(okta_client),
             )
 
             vuln_runbooks = RunbookRegistry()
@@ -147,7 +147,7 @@ def create_app(cfg: Config = config) -> FastAPI:
                 VulnModule(
                     model=cfg.agent.model,
                     runbooks=vuln_runbooks,
-                    intel=VulnIntelCapability(),
+                    intel=VulnIntelTool(),
                     data_sources=[cfg.vuln.name],
                 )
             )

@@ -8,7 +8,7 @@ from pydantic_ai.models.test import TestModel
 
 from src.modules.siem.analyst import AnalystAgent
 from src.core.orchestration.runbook_registry import Runbook
-from src.capabilities.tools.identity.assessment import IdentityCapability
+from src.capabilities.tools.identity.assessment import IdentityTool
 from src.capabilities.tools.identity.user_profile import UserProfile
 
 
@@ -17,7 +17,7 @@ def _make_runbook() -> Runbook:
 
 
 def _make_analyst(okta_client=None) -> AnalystAgent:
-    identity = IdentityCapability(okta_client) if okta_client is not None else None
+    identity = IdentityTool(okta_client) if okta_client is not None else None
     return AnalystAgent(
         model=TestModel(),
         runbook=_make_runbook(),

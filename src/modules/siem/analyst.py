@@ -25,7 +25,7 @@ from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
 
 if TYPE_CHECKING:
-    from src.capabilities.tools.identity.assessment import IdentityCapability
+    from src.capabilities.tools.identity.assessment import IdentityTool
 
 
 class AnalystModel(BaseModel):
@@ -71,7 +71,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         model: str,
         runbook: Runbook,
         data_agents: list[BaseDataAgent],
-        identity: IdentityCapability | None = None,
+        identity: IdentityTool | None = None,
     ) -> None:
         self._runbook = (
             runbook  # must be set before super().__init__ calls self.instructions
