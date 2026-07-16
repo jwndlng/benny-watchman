@@ -1,6 +1,6 @@
 import uvicorn
 
-from src.api.app import create_app
+from src.adapters.api.app import create_app
 from src.utils.observability import configure_logging, setup_observability
 
 # Configure logging before create_app (FastMCP calls logging.basicConfig on init)

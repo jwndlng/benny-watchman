@@ -10,7 +10,7 @@ import logfire
 if TYPE_CHECKING:
     from src.core.orchestration.capabilities import Capabilities
     from src.core.orchestration.module_registry import ModuleRegistry
-    from src.models import InvestigationModel
+    from src.adapters.persistence import InvestigationModel
     from src.schemas.investigation import Investigation
 
 

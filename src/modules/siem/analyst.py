@@ -14,18 +14,18 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
-from src.capabilities.data.base_data_agent import BaseDataAgent
-from src.capabilities.data.query_tool import make_query_tool
-from src.capabilities.identity.user_profile import UserProfile
+from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
+from src.capabilities.subagents.data.query_tool import make_query_tool
+from src.capabilities.tools.identity.user_profile import UserProfile
 from src.core.agents.base_agent import BaseAgent
 from src.core.orchestration.runbook_registry import Runbook
-from src.modules.siem.alert import Alert
-from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
+from src.modules.siem.schemas.alert import Alert
+from src.modules.siem.schemas.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
 
 if TYPE_CHECKING:
-    from src.capabilities.identity.assessment import IdentityCapability
+    from src.capabilities.tools.identity.assessment import IdentityCapability
 
 
 class AnalystModel(BaseModel):

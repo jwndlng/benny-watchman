@@ -12,13 +12,13 @@ from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
 
-from src.capabilities.data.base_data_agent import BaseDataAgent
-from src.capabilities.data.query_tool import make_query_tool
+from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
+from src.capabilities.subagents.data.query_tool import make_query_tool
 from src.core.agents.base_agent import BaseAgent
 from src.core.orchestration.runbook_registry import Runbook
-from src.modules.vuln_mgmt.finding import Finding
-from src.modules.vuln_mgmt.intel import VulnIntelCapability
-from src.modules.vuln_mgmt.report import VulnTriageReport
+from src.modules.vuln_mgmt.schemas.finding import Finding
+from src.modules.vuln_mgmt.tools.intel import VulnIntelCapability
+from src.modules.vuln_mgmt.schemas.report import VulnTriageReport
 from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
 

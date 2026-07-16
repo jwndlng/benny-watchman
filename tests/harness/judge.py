@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.modules.siem.incident_report import IncidentReport, Severity
+from src.modules.siem.schemas.incident_report import IncidentReport, Severity
 
 if TYPE_CHECKING:
     from tests.harness.cases.base_case import BaseCase

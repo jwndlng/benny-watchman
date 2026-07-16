@@ -4,12 +4,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.engines.elasticsearch import ElasticsearchEngine
+from src.adapters.engines.elasticsearch import ElasticsearchEngine
 
 
 @pytest.fixture
 def engine():
-    with patch("src.engines.elasticsearch.Elasticsearch") as mock_cls:
+    with patch("src.adapters.engines.elasticsearch.Elasticsearch") as mock_cls:
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
         eng = ElasticsearchEngine(host="https://es:9200", api_key="key")
@@ -19,7 +19,7 @@ def engine():
 
 @pytest.fixture
 def engine_with_pattern():
-    with patch("src.engines.elasticsearch.Elasticsearch") as mock_cls:
+    with patch("src.adapters.engines.elasticsearch.Elasticsearch") as mock_cls:
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
         eng = ElasticsearchEngine(

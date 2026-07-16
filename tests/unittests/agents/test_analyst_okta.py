@@ -8,8 +8,8 @@ from pydantic_ai.models.test import TestModel
 
 from src.modules.siem.analyst import AnalystAgent
 from src.core.orchestration.runbook_registry import Runbook
-from src.capabilities.identity.assessment import IdentityCapability
-from src.capabilities.identity.user_profile import UserProfile
+from src.capabilities.tools.identity.assessment import IdentityCapability
+from src.capabilities.tools.identity.user_profile import UserProfile
 
 
 def _make_runbook() -> Runbook:

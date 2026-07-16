@@ -10,8 +10,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.capabilities.data.base_data_agent import BaseDataAgent
-    from src.capabilities.identity.assessment import IdentityCapability
+    from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
+    from src.capabilities.tools.identity.assessment import IdentityCapability
 
 
 @dataclass

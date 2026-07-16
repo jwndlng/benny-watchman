@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.modules.vuln_mgmt.analyst import VulnAnalystAgent
-from src.modules.vuln_mgmt.finding import Finding
+from src.modules.vuln_mgmt.schemas.finding import Finding
 
 if TYPE_CHECKING:
     from src.core.orchestration.capabilities import Capabilities
     from src.core.orchestration.runbook_registry import RunbookRegistry
-    from src.modules.vuln_mgmt.intel import VulnIntelCapability
+    from src.modules.vuln_mgmt.tools.intel import VulnIntelCapability
     from src.schemas.investigation import Investigation
 
 

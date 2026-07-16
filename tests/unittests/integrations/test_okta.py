@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.capabilities.identity.okta import OktaClient
+from src.capabilities.tools.identity.okta import OktaClient
 
 _ORG = "https://example.okta.com"
 _CLIENT_ID = "0oa_test_client_id"
@@ -17,7 +17,9 @@ _TEST_JWK = base64.b64encode(
 
 
 def _make_client(sdk_mock: MagicMock) -> OktaClient:
-    with patch("src.capabilities.identity.okta.OktaSDKClient", return_value=sdk_mock):
+    with patch(
+        "src.capabilities.tools.identity.okta.OktaSDKClient", return_value=sdk_mock
+    ):
         return OktaClient(
             org_url=_ORG,
             client_id=_CLIENT_ID,
@@ -256,7 +258,7 @@ def test_constructor_raises_on_empty_private_key():
 
 
 def test_constructor_passes_jwt_config_to_sdk():
-    with patch("src.capabilities.identity.okta.OktaSDKClient") as MockSDK:
+    with patch("src.capabilities.tools.identity.okta.OktaSDKClient") as MockSDK:
         MockSDK.return_value = MagicMock()
         OktaClient(org_url=_ORG, client_id=_CLIENT_ID, private_key_b64=_TEST_JWK)
 
