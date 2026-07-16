@@ -35,15 +35,18 @@ def run_once(
     orchestrator: OrchestratorAgent,
     platform: TriagePlatform,
     hint: str,
+    limit: int | None = None,
 ) -> list[Investigation]:
-    """Process every open work item once: investigate, then write the outcome back.
+    """Process open work items once: investigate, then write the outcome back.
 
     Case-always for traceability; benign/false-positive → CLOSED, otherwise
     ESCALATED. Only freshly-created investigations are written back — a re-seen
-    (deduplicated) or unresolvable item is skipped.
+    (deduplicated) or unresolvable item is skipped. `limit` bounds how many items
+    a single pass triages (None → the platform's default).
     """
     handled: list[Investigation] = []
-    for raw in platform.fetch_open():
+    raws = platform.fetch_open(limit) if limit is not None else platform.fetch_open()
+    for raw in raws:
         item_id = raw["id"]
         result = orchestrator.handle(raw, hint=hint)
         if result.investigation is None:

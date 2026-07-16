@@ -32,6 +32,7 @@ class _FakeKibana:
             return _Resp(
                 {
                     "hits": {
+                        "total": {"value": 1},
                         "hits": [
                             {
                                 "_id": "alert-1",
@@ -44,7 +45,7 @@ class _FakeKibana:
                                     "kibana.alert.severity": "high",
                                 },
                             }
-                        ]
+                        ],
                     }
                 }
             )
@@ -55,6 +56,10 @@ class _FakeKibana:
     def patch(self, path: str, json: dict) -> _Resp:
         self.calls.append(("PATCH", path, json))
         return _Resp([{"id": "case-1", "version": "v2"}])
+
+    def get(self, path: str, params: dict | None = None) -> _Resp:
+        self.calls.append(("GET", path, params or {}))
+        return _Resp({"cases": [], "total": 0})
 
     def paths(self) -> list[str]:
         return [f"{m} {p}" for m, p, _ in self.calls]
@@ -136,6 +141,20 @@ def test_write_back_creates_case_comments_and_sets_case_severity():
     # severity set on the case, normalized
     patch_body = next(c[2] for c in fake.calls if c[0] == "PATCH")
     assert patch_body["cases"][0]["severity"] == "high"
+
+
+def test_health_check_probes_alerts_and_cases_read_only():
+    platform, fake = _platform()
+    status = platform.health_check()
+
+    assert status["platform"] == "elastic"
+    assert status["ok"] is True
+    assert status["checks"]["alerts_read"] == "ok"
+    assert status["checks"]["cases_access"] == "ok"
+    assert status["open_alerts"] == 1
+    # read-only: no case created, no status change
+    assert "POST /api/cases" not in fake.paths()
+    assert all(c[1] != "/api/detection_engine/signals/status" for c in fake.calls)
 
 
 def test_comment_without_case_raises():

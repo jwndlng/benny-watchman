@@ -98,7 +98,7 @@ class _KibanaConfig:
 
 def _load_kibana_config() -> "_KibanaConfig | None":
     url = os.environ.get("KIBANA_URL", "")
-    api_key = os.environ.get("KIBANA_API_KEY", "")
+    api_key = os.environ.get("KIBANA_TRIAGE_API_KEY", "")
     if not url or not api_key:
         return None
     case_owner = os.environ.get("KIBANA_CASE_OWNER", "securitySolution")

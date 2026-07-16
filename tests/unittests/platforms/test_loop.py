@@ -59,6 +59,23 @@ def test_benign_is_closed_and_true_positive_is_escalated():
     assert platform.fetch_open() == []
 
 
+def test_limit_bounds_how_many_are_triaged():
+    platform = InMemoryTriagePlatform([{"id": "a1"}, {"id": "a2"}, {"id": "a3"}])
+    orch = _FakeOrchestrator(
+        {
+            item: HandleResult(_investigation(item, "false_positive"), created=True)
+            for item in ("a1", "a2", "a3")
+        }
+    )
+
+    handled = run_once(orch, platform, hint="siem", limit=1)
+
+    assert len(handled) == 1
+    assert len(platform.cases()) == 1
+    # two alerts remain open (not all triaged)
+    assert len(platform.fetch_open()) == 2
+
+
 def test_dedup_and_unresolved_are_skipped():
     platform = InMemoryTriagePlatform([{"id": "a1"}, {"id": "a2"}])
     orch = _FakeOrchestrator(

@@ -161,6 +161,45 @@ class ElasticSecurityPlatform:
         if isinstance(updated, list) and updated:
             self._case[item_id] = (case_id, updated[0].get("version", version))
 
+    def health_check(self) -> dict:
+        """Read-only probe of alerts + cases access; no triage, no mutation."""
+        checks: dict[str, str] = {}
+        open_alerts: int | None = None
+        try:
+            resp = self._client.post(
+                _SIGNALS_SEARCH,
+                json={
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"kibana.alert.workflow_status": "open"}}
+                            ]
+                        }
+                    },
+                    "size": 0,
+                },
+            )
+            resp.raise_for_status()
+            total = resp.json().get("hits", {}).get("total", 0)
+            open_alerts = total.get("value") if isinstance(total, dict) else total
+            checks["alerts_read"] = "ok"
+        except Exception as exc:  # noqa: BLE001
+            checks["alerts_read"] = f"error: {exc}"
+        try:
+            resp = self._client.get(
+                f"{_CASES}/_find", params={"owner": self._owner, "perPage": 1}
+            )
+            resp.raise_for_status()
+            checks["cases_access"] = "ok"
+        except Exception as exc:  # noqa: BLE001
+            checks["cases_access"] = f"error: {exc}"
+        return {
+            "platform": "elastic",
+            "ok": all(v == "ok" for v in checks.values()),
+            "checks": checks,
+            "open_alerts": open_alerts,
+        }
+
     # --- helpers ---
 
     def _require_case(self, item_id: str) -> tuple[str, str]:
