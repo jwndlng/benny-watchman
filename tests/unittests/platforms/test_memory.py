@@ -25,3 +25,10 @@ def test_terminal_status_drops_item_from_open_queue():
 def test_fetch_open_respects_limit():
     platform = InMemoryTriagePlatform([{"id": f"a{i}"} for i in range(5)])
     assert len(platform.fetch_open(limit=2)) == 2
+
+
+def test_health_check_reports_open_count():
+    platform = InMemoryTriagePlatform([{"id": "a1"}, {"id": "a2"}])
+    status = platform.health_check()
+    assert status["ok"] is True
+    assert status["open_alerts"] == 2

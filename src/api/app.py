@@ -1,9 +1,15 @@
 """FastAPI application factory."""
 
+import json
+import logging
+import os
+import pathlib
 import secrets
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+import anyio
+import logfire
 from fastapi import FastAPI
 
 from src.api.routes.findings import router as findings_router
@@ -25,9 +31,36 @@ from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.mcp.server.app import MCPServer
 from src.models import ModelFactory
 from src.modules.siem.module import SIEMModule
+from src.platforms.base import TriagePlatform
+from src.platforms.elastic import ElasticSecurityPlatform
 from src.platforms.memory import InMemoryTriagePlatform
 from src.modules.vuln_mgmt.intel import VulnIntelCapability
 from src.modules.vuln_mgmt.module import VulnModule
+
+logger = logging.getLogger(__name__)
+
+
+def _load_seed_alerts() -> list[dict]:
+    """Dev only: seed the in-memory platform from a JSON file of raw alerts.
+
+    Set TRIAGE_SEED_ALERTS to a path to a JSON array of alert dicts. Lets you
+    exercise the triage loop / `review_newest_alert` locally without Elastic.
+    """
+    path = os.environ.get("TRIAGE_SEED_ALERTS")
+    if not path:
+        return []
+    return json.loads(pathlib.Path(path).read_text())
+
+
+def _select_triage_platform(cfg: Config) -> TriagePlatform:
+    """Elastic when Kibana is configured, else the in-memory reference platform."""
+    if cfg.kibana is not None:
+        return ElasticSecurityPlatform(
+            kibana_url=cfg.kibana.url,
+            api_key=cfg.kibana.api_key,
+            case_owner=cfg.kibana.case_owner,
+        )
+    return InMemoryTriagePlatform(items=_load_seed_alerts())
 
 
 def create_app(cfg: Config = config) -> FastAPI:
@@ -35,7 +68,9 @@ def create_app(cfg: Config = config) -> FastAPI:
 
     mcp_token = cfg.mcp_bearer_token or secrets.token_urlsafe(32)
     if not cfg.mcp_bearer_token:
-        print(f"MCP bearer token: {mcp_token}", flush=True)
+        logger.warning(
+            "MCP_BEARER_TOKEN not set — generated ephemeral token: %s", mcp_token
+        )
 
     mcp_server = MCPServer()
 
@@ -89,7 +124,6 @@ def create_app(cfg: Config = config) -> FastAPI:
             await asset_agent.initialize()
 
             all_agents = [*log_agents, asset_agent]
-            mcp_server.register(all_agents, registry)
 
             persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
 
@@ -123,8 +157,29 @@ def create_app(cfg: Config = config) -> FastAPI:
             )
             app.state.persistence = persistence
             app.state.registry = registry
-            # Dev/reference platform; a real one (e.g. ElasticSecurityPlatform) is wired later.
-            app.state.triage_platform = InMemoryTriagePlatform(items=[])
+            app.state.triage_platform = _select_triage_platform(cfg)
+            mcp_server.register(
+                all_agents,
+                registry,
+                app.state.orchestrator,
+                app.state.triage_platform,
+            )
+
+            # Early feedback: probe the triage platform at startup (non-blocking).
+            health = await anyio.to_thread.run_sync(
+                app.state.triage_platform.health_check
+            )
+            logger.info(
+                "triage platform (%s): ok=%s open_alerts=%s checks=%s",
+                health["platform"],
+                health["ok"],
+                health.get("open_alerts"),
+                health["checks"],
+            )
+            if not health["ok"]:
+                logfire.warning(
+                    "triage platform health check failed", checks=health["checks"]
+                )
             yield
 
             if elastic_agent is not None:

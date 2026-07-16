@@ -1,4 +1,12 @@
+<p align="center">
+  <img src="logo.jpeg" alt="Benny Watchman logo" width="200">
+</p>
+
 # Benny, never sleeps, Watchman.
+
+[![Unit Tests](https://github.com/jwndlng/benny-watchman/actions/workflows/test.yml/badge.svg)](https://github.com/jwndlng/benny-watchman/actions/workflows/test.yml)
+[![Integration Tests](https://github.com/jwndlng/benny-watchman/actions/workflows/integration-test.yml/badge.svg)](https://github.com/jwndlng/benny-watchman/actions/workflows/integration-test.yml)
+[![Lint](https://github.com/jwndlng/benny-watchman/actions/workflows/lint.yml/badge.svg)](https://github.com/jwndlng/benny-watchman/actions/workflows/lint.yml)
 
 Benny is an autonomous AI security analyst — a small **team of domain experts** you can hand work to. He receives alerts and vulnerability findings via REST API, investigates them with agentic reasoning loops against your data, and returns structured triage reports — fully unattended, 24/7.
 
@@ -23,7 +31,7 @@ Benny is organized along a **horizontal / vertical** seam so new triage domains 
   - **Identity** — user, role, and access context (Okta)
   - **Enrichment** — threat intel for indicators / CVEs
 - **Core** — `BaseAgent` framework, `OrchestratorAgent` (routing + idempotency), `ModuleRegistry`, and the `Capabilities` container.
-- **Platforms** — the operational systems Benny works *within* (`TriagePlatform`): they supply alerts to triage and receive his actions (comment, disposition, case, status). A triage-loop pulls open alerts → investigates → writes back (case-always; auto-closes benign, escalates real). An in-memory reference impl ships today; Elastic Security is a follow-up.
+- **Platforms** — the operational systems Benny works *within* (`TriagePlatform`): they supply alerts to triage and receive his actions (comment, disposition, case, status). A triage-loop pulls open alerts → investigates → writes back (case-always; auto-closes benign, escalates real). Implementations: an in-memory reference platform (dev) and `ElasticSecurityPlatform` (Elastic Security, via the Kibana API). Selected by config; triggered by `POST /triage/run`.
 - **MCP server** — exposes Benny to LLM clients (Claude Code, Antigravity, …) at `/mcp`.
 
 Adding a triage domain = adding a `src/modules/<domain>/` folder that implements the `AnalystModule` contract. The layout mirrors this seam: `src/core/`, `src/capabilities/`, `src/modules/`, `src/platforms/`, `src/mcp/{server,clients}/`.
@@ -67,7 +75,7 @@ Adding a triage domain = adding a `src/modules/<domain>/` folder that implements
 
 ## MCP server
 
-Benny exposes a Streamable HTTP MCP server at `/mcp` alongside the REST API, so LLM clients can use it directly. Tools: `list_runbooks` and `lookup_data`. On first run a bearer token is printed to stdout unless `MCP_BEARER_TOKEN` is set. See `AGENT.md` for client configuration.
+Benny exposes a Streamable HTTP MCP server at `/mcp` alongside the REST API, so LLM clients can use it directly. Tools: `list_runbooks`, `lookup_data`, `check_platform_access` (read-only triage-platform connectivity/privilege check), and `review_newest_alert` (triage the single newest open alert on demand). On first run a bearer token is printed to stdout unless `MCP_BEARER_TOKEN` is set. See `AGENT.md` for client configuration.
 
 ## Getting started
 
@@ -101,8 +109,12 @@ All settings are read from environment variables:
 | `RUNBOOKS_PATH` | `src/modules/siem/runbooks` | SIEM runbook directory |
 | `PERSISTENCE_DB_PATH` | `investigations.db` | Investigation storage |
 | `MCP_BEARER_TOKEN` | *(generated)* | Bearer token for the MCP server |
+| `LOG_LEVEL` | `INFO` | Root log level; `DEBUG` also unmutes httpx/elasticsearch per-request logs |
+| `LOG_FORMAT` | `console` | `console` (colored, human-readable) or `json` (one object per line, for log collectors) |
 
-Optional integrations (auto-disabled when unset): `ELASTIC_HOST` / `ELASTIC_API_KEY` / `ELASTIC_INDEX_PATTERN` (Elasticsearch data source), `OKTA_DOMAIN` / `OKTA_CLIENT_ID` / `OKTA_PRIVATE_KEY` (identity capability).
+All subsystems (uvicorn, MCP, HTTP clients, Benny's own logs) render through a single [structlog](https://www.structlog.org) pipeline — colored in a terminal, structured JSON in production.
+
+Optional integrations (auto-disabled when unset): `ELASTIC_HOST` / `ELASTIC_API_KEY` / `ELASTIC_INDEX_PATTERN` (Elasticsearch data source), `KIBANA_URL` / `KIBANA_TRIAGE_API_KEY` / `KIBANA_CASE_OWNER` (the Elastic triage platform — API key scoped to alerts-read + signal-status-write + cases, never remediation), `OKTA_DOMAIN` / `OKTA_CLIENT_ID` / `OKTA_PRIVATE_KEY` (identity capability), `LOGFIRE_TOKEN` (Logfire tracing).
 
 ## Runbooks
 

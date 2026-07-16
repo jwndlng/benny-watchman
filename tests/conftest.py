@@ -76,6 +76,7 @@ def client(tmp_path):
         data = _Data()
         vuln = _Vuln()
         elastic = None
+        kibana = None
         okta = None
         mcp_bearer_token = "test-mcp-token"
 

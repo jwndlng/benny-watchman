@@ -51,3 +51,10 @@ class TriagePlatform(Protocol):
     def create_case(self, item_id: str, investigation: Investigation) -> str:
         """Open a case for traceability and return its id."""
         ...
+
+    def health_check(self) -> dict:
+        """Check connectivity and privileges without triaging or mutating anything.
+
+        Returns a status dict: ``{"platform", "ok", "checks": {...}, "open_alerts"}``.
+        """
+        ...

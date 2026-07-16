@@ -87,6 +87,24 @@ def _load_elastic_config() -> "_ElasticConfig | None":
     return _ElasticConfig(host=host, api_key=api_key, index_pattern=index_pattern)
 
 
+class _KibanaConfig:
+    """Kibana Security app settings — the TriagePlatform (write-back) surface."""
+
+    def __init__(self, url: str, api_key: str, case_owner: str) -> None:
+        self.url = url
+        self.api_key = api_key
+        self.case_owner = case_owner
+
+
+def _load_kibana_config() -> "_KibanaConfig | None":
+    url = os.environ.get("KIBANA_URL", "")
+    api_key = os.environ.get("KIBANA_TRIAGE_API_KEY", "")
+    if not url or not api_key:
+        return None
+    case_owner = os.environ.get("KIBANA_CASE_OWNER", "securitySolution")
+    return _KibanaConfig(url=url, api_key=api_key, case_owner=case_owner)
+
+
 def _load_okta_config() -> "_OktaConfig | None":
     domain = os.environ.get("OKTA_DOMAIN", "")
     client_id = os.environ.get("OKTA_CLIENT_ID", "")
@@ -107,6 +125,7 @@ class Config:
     data = _DataConfig()
     vuln = _VulnConfig()
     elastic: "_ElasticConfig | None" = _load_elastic_config()
+    kibana: "_KibanaConfig | None" = _load_kibana_config()
     okta: "_OktaConfig | None" = _load_okta_config()
     mcp_bearer_token: "str | None" = os.environ.get("MCP_BEARER_TOKEN") or None
 

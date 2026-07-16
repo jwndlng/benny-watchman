@@ -6,23 +6,30 @@ import asyncio
 import json
 from typing import TYPE_CHECKING
 
+import anyio
+
 from mcp.server.fastmcp import FastMCP
 
 from src.capabilities.data.base_data_agent import BaseDataAgent
+from src.platforms.loop import run_once
 
 if TYPE_CHECKING:
+    from src.core.orchestration.orchestrator import OrchestratorAgent
     from src.core.orchestration.runbook_registry import RunbookRegistry
+    from src.platforms.base import TriagePlatform
 
 
 def register_tools(
     mcp: FastMCP,
     data_agents: list[BaseDataAgent],
     registry: RunbookRegistry,
+    orchestrator: OrchestratorAgent,
+    platform: TriagePlatform,
 ) -> None:
     """Register all MCP tools on the given FastMCP instance.
 
-    Called during FastAPI lifespan after agents are initialised, so tools
-    close over live references and share the same data agents as the REST API.
+    Called during FastAPI lifespan after agents are initialised, so tools close
+    over live references and share the same components as the REST API.
     """
 
     @mcp.tool()
@@ -63,3 +70,42 @@ def register_tools(
 
         results = await asyncio.gather(*[_run_agent(a) for a in data_agents])
         return json.dumps(list(results))
+
+    @mcp.tool()
+    async def check_platform_access() -> str:
+        """Check the triage platform's connectivity and privileges WITHOUT triaging.
+
+        Read-only: verifies Benny can reach the SIEM (Kibana), read alerts, and
+        access cases, and reports how many open alerts are waiting. Use this to
+        validate KIBANA_URL / KIBANA_TRIAGE_API_KEY and the key's privileges before
+        running a triage — it makes no changes and runs no investigation.
+        """
+        status = await anyio.to_thread.run_sync(platform.health_check)
+        return json.dumps(status)
+
+    @mcp.tool()
+    async def review_newest_alert() -> str:
+        """Triage the newest open alert on demand.
+
+        Benny investigates the single most-recent open alert and writes the verdict
+        back to the SIEM: opens a case, comments its reasoning, sets the severity,
+        and closes it if benign or escalates it if a real threat. Returns the result.
+        Use this to have Benny review one alert now, rather than the whole queue.
+        """
+        # run_once drives the synchronous analyst loop; run it off the event loop.
+        handled = await anyio.to_thread.run_sync(
+            lambda: run_once(orchestrator, platform, "siem", 1)
+        )
+        if not handled:
+            return json.dumps({"triaged": 0, "message": "No open alerts to triage."})
+        inv = handled[0]
+        return json.dumps(
+            {
+                "triaged": 1,
+                "alert_id": inv.alert_id,
+                "runbook": inv.runbook,
+                "disposition": inv.outcome.disposition if inv.outcome else None,
+                "priority": inv.outcome.priority if inv.outcome else None,
+                "summary": (inv.report or {}).get("summary", ""),
+            }
+        )

@@ -65,6 +65,14 @@ class InMemoryTriagePlatform:
         )
         return case_id
 
+    def health_check(self) -> dict:
+        return {
+            "platform": "in-memory",
+            "ok": True,
+            "checks": {"alerts_read": "ok"},
+            "open_alerts": len(self.fetch_open()),
+        }
+
     # --- inspection helpers (for tests / dev) ---
 
     def status_of(self, item_id: str) -> TriageStatus:

@@ -18,6 +18,7 @@ dependencies = [
     "okta>=2.9.7",
     "pydantic-ai[all]>=0.8.1",
     "uvicorn>=0.41.0",
+    "structlog>=26.1.0",
 ]
 
 [dependency-groups]
