@@ -19,8 +19,7 @@ def test_list_tables(data_agent):
 
 def test_brute_force_scenario_planted(data_agent):
     rows = data_agent.run_query(
-        f"SELECT count(*) AS cnt FROM auth_logs "
-        f"WHERE src_ip = '{BRUTE_FORCE_ATTACKER_IP}' AND success = 0"
+        f"SELECT count(*) AS cnt FROM auth_logs WHERE src_ip = '{BRUTE_FORCE_ATTACKER_IP}' AND success = 0"
     )
     assert rows[0]["cnt"] >= BRUTE_FORCE_MIN_FAILURES
 

@@ -21,7 +21,7 @@ from src.adapters.api.routes.runbooks import router as runbooks_router
 from src.adapters.api.routes.triage import router as triage_router
 from src.capabilities.subagents.data.elastic_data_agent import ElasticDataAgent
 from src.capabilities.subagents.data.sqlite_data_agent import SQLiteDataAgent
-from src.capabilities.tools.identity.assessment import IdentityCapability
+from src.capabilities.tools.identity.assessment import IdentityTool
 from src.capabilities.tools.identity.okta import OktaClient
 from src.config import Config, config
 from src.core.orchestration.capabilities import Capabilities
@@ -34,7 +34,7 @@ from src.modules.siem.module import SIEMModule
 from src.adapters.platforms.base import TriagePlatform
 from src.adapters.platforms.elastic import ElasticSecurityPlatform
 from src.adapters.platforms.memory import InMemoryTriagePlatform
-from src.modules.vuln_mgmt.tools.intel import VulnIntelCapability
+from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
 from src.modules.vuln_mgmt.module import VulnModule
 
 logger = logging.getLogger(__name__)
@@ -68,9 +68,7 @@ def create_app(cfg: Config = config) -> FastAPI:
 
     mcp_token = cfg.mcp_bearer_token or secrets.token_urlsafe(32)
     if not cfg.mcp_bearer_token:
-        logger.warning(
-            "MCP_BEARER_TOKEN not set — generated ephemeral token: %s", mcp_token
-        )
+        logger.warning("MCP_BEARER_TOKEN not set — generated ephemeral token: %s", mcp_token)
 
     mcp_server = MCPServer()
 
@@ -129,7 +127,7 @@ def create_app(cfg: Config = config) -> FastAPI:
 
             capabilities = Capabilities(
                 data={agent.name: agent for agent in all_agents},
-                identity=IdentityCapability(okta_client),
+                identity=IdentityTool(okta_client),
             )
 
             vuln_runbooks = RunbookRegistry()
@@ -147,14 +145,12 @@ def create_app(cfg: Config = config) -> FastAPI:
                 VulnModule(
                     model=cfg.agent.model,
                     runbooks=vuln_runbooks,
-                    intel=VulnIntelCapability(),
+                    intel=VulnIntelTool(),
                     data_sources=[cfg.vuln.name],
                 )
             )
 
-            app.state.orchestrator = OrchestratorAgent(
-                module_registry, persistence, capabilities
-            )
+            app.state.orchestrator = OrchestratorAgent(module_registry, persistence, capabilities)
             app.state.persistence = persistence
             app.state.registry = registry
             app.state.triage_platform = _select_triage_platform(cfg)
@@ -166,9 +162,7 @@ def create_app(cfg: Config = config) -> FastAPI:
             )
 
             # Early feedback: probe the triage platform at startup (non-blocking).
-            health = await anyio.to_thread.run_sync(
-                app.state.triage_platform.health_check
-            )
+            health = await anyio.to_thread.run_sync(app.state.triage_platform.health_check)
             logger.info(
                 "triage platform (%s): ok=%s open_alerts=%s checks=%s",
                 health["platform"],
@@ -177,9 +171,7 @@ def create_app(cfg: Config = config) -> FastAPI:
                 health["checks"],
             )
             if not health["ok"]:
-                logfire.warning(
-                    "triage platform health check failed", checks=health["checks"]
-                )
+                logfire.warning("triage platform health check failed", checks=health["checks"])
             yield
 
             if elastic_agent is not None:

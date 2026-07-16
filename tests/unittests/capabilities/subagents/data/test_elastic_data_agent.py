@@ -9,7 +9,7 @@ from src.capabilities.subagents.data.elastic_data_agent import (
     ElasticDataAgent,
     _index_prefix,
 )
-from src.adapters.engines.base import ColumnInfo, TableInfo
+from src.core.ports.query_engine import ColumnInfo, TableInfo
 
 
 # ---------------------------------------------------------------------------
@@ -44,9 +44,7 @@ def test_prefix_unchanged_for_hidden_index():
 
 @pytest.fixture
 def agent():
-    with patch(
-        "src.capabilities.subagents.data.elastic_data_agent.ElasticsearchEngine"
-    ) as mock_engine_cls:
+    with patch("src.capabilities.subagents.data.elastic_data_agent.ElasticsearchEngine") as mock_engine_cls:
         mock_engine = AsyncMock()
         mock_engine_cls.return_value = mock_engine
         a = ElasticDataAgent(
@@ -74,11 +72,7 @@ async def test_initialize_groups_sharded_indices(agent):
             TableInfo(name="audit-2025.05.01"),
         ]
     )
-    engine.get_schema = AsyncMock(
-        return_value=[
-            ColumnInfo(name="@timestamp", type="date", notnull=False, pk=False)
-        ]
-    )
+    engine.get_schema = AsyncMock(return_value=[ColumnInfo(name="@timestamp", type="date", notnull=False, pk=False)])
     engine.get_sample = AsyncMock(return_value=[{"@timestamp": "2025-05-01"}])
 
     await a.initialize()
@@ -93,9 +87,7 @@ async def test_initialize_groups_sharded_indices(agent):
 async def test_initialize_sets_routing_description(agent):
     a, engine = agent
     engine.list_tables = AsyncMock(return_value=[TableInfo(name="myindex")])
-    engine.get_schema = AsyncMock(
-        return_value=[ColumnInfo(name="user", type="keyword", notnull=False, pk=False)]
-    )
+    engine.get_schema = AsyncMock(return_value=[ColumnInfo(name="user", type="keyword", notnull=False, pk=False)])
     engine.get_sample = AsyncMock(return_value=[{"user": "alice"}])
 
     await a.initialize()
@@ -158,9 +150,7 @@ def test_instructions_contain_esql_guidance(agent):
     a, _ = agent
     assert "ES|QL" in a.instructions or "esql" in a.instructions.lower()
     assert "FROM" in a.instructions
-    assert (
-        "subqueries" in a.instructions.lower() or "subquery" in a.instructions.lower()
-    )
+    assert "subqueries" in a.instructions.lower() or "subquery" in a.instructions.lower()
 
 
 def test_constraints_mention_limit(agent):

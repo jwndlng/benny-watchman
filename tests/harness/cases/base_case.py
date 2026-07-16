@@ -39,13 +39,9 @@ class BaseCase(ABC):
 
             runbook = registry.get(self.runbook_name) or registry.get("generic")
             if runbook is None:
-                raise RuntimeError(
-                    f"No runbook found for '{self.runbook_name}' and no 'generic' fallback."
-                )
+                raise RuntimeError(f"No runbook found for '{self.runbook_name}' and no 'generic' fallback.")
 
-            data_agent = SQLiteDataAgent(
-                name="security_logs", model=model, db_path=db_path
-            )
+            data_agent = SQLiteDataAgent(name="security_logs", model=model, db_path=db_path)
             asyncio.run(data_agent.initialize())
 
             agent = AnalystAgent(model=model, runbook=runbook, data_agents=[data_agent])

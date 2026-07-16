@@ -6,7 +6,7 @@ import threading
 
 import logfire
 
-from src.adapters.engines.base import ColumnInfo, QueryEngine, TableInfo
+from src.core.ports.query_engine import ColumnInfo, QueryEngine, TableInfo
 
 
 class SQLiteEngine(QueryEngine):
@@ -25,9 +25,7 @@ class SQLiteEngine(QueryEngine):
     def list_tables(self) -> list[TableInfo]:
         """Return all table names available in the database."""
         with self._lock:
-            rows = self._conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-            ).fetchall()
+            rows = self._conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
         return [TableInfo(name=row["name"]) for row in rows]
 
     @logfire.instrument("get_schema")
@@ -70,10 +68,7 @@ class SQLiteEngine(QueryEngine):
         """Create a key-value JSON store table if it does not exist."""
         table = self._safe_table(table)
         with self._lock:
-            self._conn.execute(
-                f"CREATE TABLE IF NOT EXISTS {table} "
-                "(id TEXT PRIMARY KEY, data TEXT NOT NULL)"
-            )
+            self._conn.execute(f"CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, data TEXT NOT NULL)")
             self._conn.commit()
 
     def upsert(self, table: str, record_id: str, data: str) -> None:
@@ -90,9 +85,7 @@ class SQLiteEngine(QueryEngine):
         """Return the raw JSON string for the given record_id, or None if not found."""
         table = self._safe_table(table)
         with self._lock:
-            row = self._conn.execute(
-                f"SELECT data FROM {table} WHERE id = ?", (record_id,)
-            ).fetchone()
+            row = self._conn.execute(f"SELECT data FROM {table} WHERE id = ?", (record_id,)).fetchone()
         return row["data"] if row else None
 
     def fetch_all(self, table: str) -> list[str]:

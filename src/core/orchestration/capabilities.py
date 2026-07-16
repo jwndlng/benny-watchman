@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
-    from src.capabilities.tools.identity.assessment import IdentityCapability
+    from src.capabilities.tools.identity.assessment import IdentityTool
 
 
 @dataclass
@@ -19,4 +19,4 @@ class Capabilities:
     """Typed container of the horizontal capabilities a module may consult."""
 
     data: dict[str, BaseDataAgent] = field(default_factory=dict)
-    identity: IdentityCapability | None = None
+    identity: IdentityTool | None = None

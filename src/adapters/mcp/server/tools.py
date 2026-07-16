@@ -39,9 +39,7 @@ def register_tools(
         Returns a JSON array of objects with 'name' and 'description' fields.
         Use this to discover what alert types Benny can investigate.
         """
-        return json.dumps(
-            [{"name": rb.name, "description": rb.description} for rb in registry.list()]
-        )
+        return json.dumps([{"name": rb.name, "description": rb.description} for rb in registry.list()])
 
     @mcp.tool()
     async def lookup_data(query: str) -> str:
@@ -65,7 +63,7 @@ def register_tools(
                     "rows": result.output.rows,
                     "notes": result.output.notes,
                 }
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 return {"source": agent.name, "error": str(exc)}
 
         results = await asyncio.gather(*[_run_agent(a) for a in data_agents])
@@ -93,9 +91,7 @@ def register_tools(
         Use this to have Benny review one alert now, rather than the whole queue.
         """
         # run_once drives the synchronous analyst loop; run it off the event loop.
-        handled = await anyio.to_thread.run_sync(
-            lambda: run_once(orchestrator, platform, "siem", 1)
-        )
+        handled = await anyio.to_thread.run_sync(lambda: run_once(orchestrator, platform, "siem", 1))
         if not handled:
             return json.dumps({"triaged": 0, "message": "No open alerts to triage."})
         inv = handled[0]

@@ -25,9 +25,7 @@ _BENIGN_DISPOSITIONS = {"false_positive", "benign", "not_exploitable"}
 def _summarize(investigation: Investigation) -> str:
     report = investigation.report or {}
     summary = report.get("summary", "")
-    disposition = (
-        investigation.outcome.disposition if investigation.outcome else "unknown"
-    )
+    disposition = investigation.outcome.disposition if investigation.outcome else "unknown"
     return f"Benny triage — {disposition}: {summary}".strip()
 
 
@@ -65,9 +63,7 @@ def run_once(
             disposition = inv.outcome.disposition
         platform.set_status(
             item_id,
-            TriageStatus.CLOSED
-            if disposition in _BENIGN_DISPOSITIONS
-            else TriageStatus.ESCALATED,
+            TriageStatus.CLOSED if disposition in _BENIGN_DISPOSITIONS else TriageStatus.ESCALATED,
         )
         handled.append(inv)
     return handled

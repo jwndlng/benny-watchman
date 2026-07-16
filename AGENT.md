@@ -36,7 +36,7 @@ Benny is built from two kinds of agents: **vertical analyst modules** (SIEM, lat
 | Unit of work | Compresses parent context? | Needs reasoning? | Build as |
 |---|---|---|---|
 | Single call | no | no | inline tool |
-| N fixed calls, fixed summary | **yes** | no | **composite deterministic tool** (e.g. `IdentityCapability`) |
+| N fixed calls, fixed summary | **yes** | no | **composite deterministic tool** (e.g. `IdentityTool`) |
 | N calls, path/verdict decided by a model | **yes** | yes | **sub-agent (LLM loop)** (e.g. `DataAgent`) |
 | The investigation's own top-level reasoning | n/a | yes | the analyst itself — **never sharded** |
 
@@ -105,7 +105,7 @@ Alternatively register it in any other LLM agent such as Antigravity CLI (`~/.ge
 ## Project Structure
 
 Source is organized along two axes (see `openspec/changes/layered-package-structure`): a **horizontal/vertical seam** (where code is shared) and a **boundary-kind split** (sub-agent vs tool). Everything that touches the outside world lives in an `adapters/` ring; dependencies point inward.
-- `src/core/` — domain-agnostic framework and orchestration (`core/agents/base_agent.py`, `core/orchestration/`). Imports only `schemas/`; never `modules/`, and never `adapters/` at runtime (one transitional exception: a `TYPE_CHECKING` `InvestigationModel` hint in `orchestration/orchestrator.py`, pending a persistence port).
+- `src/core/` — domain-agnostic framework and orchestration (`core/agents/base_agent.py` + the generic `core/agents/as_tool.py` sub-agent→tool bridge, `core/orchestration/`, and `core/ports/` for the interfaces core owns — `query_engine` and `persistence`). Imports only `schemas/`; never `modules/` or `adapters/` (the orchestrator type-hints `core.ports.persistence.InvestigationStore`, which `adapters.persistence` satisfies structurally).
 - `src/capabilities/` — cross-cutting **horizontals** shared by all domains, split by boundary kind: `subagents/` (LLM loops — `data/` DataAgents) and `tools/` (deterministic composites — `identity/` Okta). Horizontal-only: a tool used by a single module belongs to that module, not here.
 - `src/modules/` — **self-contained** per-domain verticals; each owns its analyst, `module.py` (`AnalystModule` contract), domain models under `schemas/`, module-local tools under `tools/`, and `runbooks/`. `modules/siem/` (SIEM analyst, `schemas/{alert,incident_report}`) and `modules/vuln_mgmt/` (VM analyst, `schemas/{finding,report}`, `tools/intel`). Each selects its data source(s) from `Capabilities` by name.
 - `src/adapters/` — the outer I/O ring; touches the outside world, depends inward on `core`/`capabilities`/`modules`:

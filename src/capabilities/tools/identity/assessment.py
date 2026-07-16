@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from src.capabilities.tools.identity.user_profile import UserProfile
 
 
-class IdentityCapability:
+class IdentityTool:
     """Composite identity/access lookups backed by an IDP client (Okta)."""
 
     def __init__(self, okta_client: OktaClient | None = None) -> None:

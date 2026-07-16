@@ -19,9 +19,7 @@ class _RunbooksConfig:
 class _AgentConfig:
     """LLM agent settings."""
 
-    model: str = os.environ.get(
-        "AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview"
-    )
+    model: str = os.environ.get("AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview")
     api_key: str | None = os.environ.get("AGENT_MODEL_API_KEY")
     max_requests: int = int(os.environ.get("AGENT_MAX_REQUESTS", "15"))
     max_data_requests: int = int(os.environ.get("AGENT_MAX_DATA_REQUESTS", "10"))
@@ -53,9 +51,7 @@ class _DataConfig:
 class _VulnConfig:
     """Vulnerability Management module settings."""
 
-    runbooks_path: str = os.environ.get(
-        "VULN_RUNBOOKS_PATH", "src/modules/vuln_mgmt/runbooks"
-    )
+    runbooks_path: str = os.environ.get("VULN_RUNBOOKS_PATH", "src/modules/vuln_mgmt/runbooks")
     db_path: str = os.environ.get("VULN_DB_PATH", "vuln.db")
     name: str = os.environ.get("VULN_DATA_AGENT_NAME", "asset_inventory")
 
@@ -111,9 +107,7 @@ def _load_okta_config() -> "_OktaConfig | None":
     private_key_b64 = os.environ.get("OKTA_PRIVATE_KEY", "")
     if not domain or not client_id or not private_key_b64:
         return None
-    return _OktaConfig(
-        domain=domain, client_id=client_id, private_key_b64=private_key_b64
-    )
+    return _OktaConfig(domain=domain, client_id=client_id, private_key_b64=private_key_b64)
 
 
 class Config:

@@ -10,9 +10,7 @@ router = APIRouter()
 def list_runbooks(request: Request) -> JSONResponse:
     """Return all loaded runbooks."""
     runbooks = request.app.state.registry.list()
-    return JSONResponse(
-        [{"name": r.name, "description": r.description} for r in runbooks]
-    )
+    return JSONResponse([{"name": r.name, "description": r.description} for r in runbooks])
 
 
 @router.get("/runbooks/{runbook_name}")

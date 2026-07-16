@@ -10,7 +10,7 @@ from src.modules.vuln_mgmt.schemas.finding import Finding
 if TYPE_CHECKING:
     from src.core.orchestration.capabilities import Capabilities
     from src.core.orchestration.runbook_registry import RunbookRegistry
-    from src.modules.vuln_mgmt.tools.intel import VulnIntelCapability
+    from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
     from src.schemas.investigation import Investigation
 
 
@@ -28,7 +28,7 @@ class VulnModule:
         self,
         model: str,
         runbooks: RunbookRegistry,
-        intel: VulnIntelCapability,
+        intel: VulnIntelTool,
         data_sources: list[str],
     ) -> None:
         self._model = model
@@ -41,7 +41,7 @@ class VulnModule:
         try:
             Finding(**raw)
             return True
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     def dedup_key(self, finding: Finding) -> str:

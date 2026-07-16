@@ -1,33 +1,26 @@
 """Factory for the per-DataAgent query tool used by analyst agents.
 
 Shared across analyst modules (SIEM, VM, …) so each can expose one query tool
-per data source without duplicating the delegation boilerplate.
+per data source without duplicating the delegation boilerplate. A thin,
+data-specific wrapper over core's generic ``agent_as_tool`` bridge.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
-import logfire
-from pydantic_ai import AgentRunResult
-
+from src.core.agents.as_tool import agent_as_tool
 from src.capabilities.subagents.data.base_data_agent import BaseDataAgent, DataModel
 
 
-def make_query_tool(data_agent: BaseDataAgent) -> Callable:
-    """Create a named async tool that delegates to the given DataAgent.
+def make_query_tool(data_agent: BaseDataAgent) -> Callable[[str], Awaitable[DataModel]]:
+    """Create a named async tool (``query_{agent.name}``) delegating to the DataAgent.
 
-    The function name becomes the PydanticAI tool name (``query_{agent.name}``)
-    and the docstring becomes the tool description seen by the LLM. Dynamic tool
-    names cannot be fixed methods, so this factory is the deliberate exception to
-    the no-closures rule.
+    The function name becomes the PydanticAI tool name and the agent's
+    ``routing_description`` becomes the tool description seen by the LLM.
     """
-
-    async def query_fn(request: str) -> DataModel:
-        with logfire.span(f"query_{data_agent.name}", request=request):
-            result: AgentRunResult[DataModel] = await data_agent.run(request)
-            return result.output
-
-    query_fn.__name__ = f"query_{data_agent.name}"
-    query_fn.__doc__ = data_agent.routing_description
-    return query_fn
+    return agent_as_tool(
+        data_agent,
+        name=f"query_{data_agent.name}",
+        description=data_agent.routing_description,
+    )

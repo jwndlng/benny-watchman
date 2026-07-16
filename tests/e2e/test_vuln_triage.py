@@ -18,7 +18,7 @@ from src.core.orchestration.orchestrator import OrchestratorAgent
 from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.adapters.persistence import ModelFactory
 from src.modules.vuln_mgmt.schemas.finding import Finding
-from src.modules.vuln_mgmt.tools.intel import VulnIntelCapability
+from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
 from src.modules.vuln_mgmt.module import VulnModule
 from src.schemas.investigation import InvestigationStatus
 from tests.harness.seeder.asset_db import PLANTED_ASSET, PLANTED_CVE, AssetDataset
@@ -47,7 +47,7 @@ def orchestrator(tmp_path):
         VulnModule(
             model=model,
             runbooks=runbooks,
-            intel=VulnIntelCapability(),
+            intel=VulnIntelTool(),
             data_sources=["asset_inventory"],
         )
     )

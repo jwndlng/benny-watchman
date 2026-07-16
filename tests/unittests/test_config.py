@@ -17,11 +17,7 @@ def _reload_config():
 
 
 def _clean_env() -> dict:
-    return {
-        k: v
-        for k, v in os.environ.items()
-        if k not in _OKTA_VARS and k not in _ELASTIC_VARS
-    }
+    return {k: v for k, v in os.environ.items() if k not in _OKTA_VARS and k not in _ELASTIC_VARS}
 
 
 def _env_without_okta() -> dict:

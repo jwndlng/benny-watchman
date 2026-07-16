@@ -5,7 +5,7 @@ import json
 import logfire
 
 from src.capabilities.subagents.data.base_data_agent import BaseDataAgent, DataModel
-from src.adapters.engines.base import ColumnInfo, TableInfo
+from src.core.ports.query_engine import ColumnInfo, TableInfo
 from src.adapters.engines.sqlite import SQLiteEngine
 
 
@@ -48,9 +48,7 @@ class SQLiteDataAgent(BaseDataAgent):
         """Introspect the SQLite DB and build a compact routing description."""
         tables = self._engine.list_tables()
         if not tables:
-            self._routing_description = (
-                f"SQLite source '{self._name}': no tables found."
-            )
+            self._routing_description = f"SQLite source '{self._name}': no tables found."
             return
         parts: list[str] = [f"SQLite data source '{self._name}'."]
         for table in tables:
@@ -58,9 +56,7 @@ class SQLiteDataAgent(BaseDataAgent):
             sample = self._engine.get_sample(table.name, n=1)
             field_names = ", ".join(c.name for c in schema)
             sample_str = json.dumps(sample[0]) if sample else "(empty)"
-            parts.append(
-                f"Table: {table.name}\n  Fields: {field_names}\n  Sample: {sample_str}"
-            )
+            parts.append(f"Table: {table.name}\n  Fields: {field_names}\n  Sample: {sample_str}")
         self._routing_description = "\n\n".join(parts)
         logfire.info("SQLiteDataAgent initialized", name=self._name, tables=len(tables))
 

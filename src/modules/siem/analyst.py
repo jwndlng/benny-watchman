@@ -25,7 +25,7 @@ from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
 
 if TYPE_CHECKING:
-    from src.capabilities.tools.identity.assessment import IdentityCapability
+    from src.capabilities.tools.identity.assessment import IdentityTool
 
 
 class AnalystModel(BaseModel):
@@ -34,23 +34,13 @@ class AnalystModel(BaseModel):
     confidence: float = Field(description="Confidence score between 0.0 and 1.0")
     summary: str = Field(description="Concise investigation summary")
     affected_entities: list[str] = Field(description="Users, hosts, and IPs involved")
-    timeline: list[str] = Field(
-        description="Ordered sequence of events found, from earliest to latest"
-    )
-    investigation_steps: list[str] = Field(
-        description="What you checked during the investigation, in order"
-    )
-    scope: str = Field(
-        description="Blast radius — what systems or data could be affected"
-    )
+    timeline: list[str] = Field(description="Ordered sequence of events found, from earliest to latest")
+    investigation_steps: list[str] = Field(description="What you checked during the investigation, in order")
+    scope: str = Field(description="Blast radius — what systems or data could be affected")
     findings: list[str] = Field(description="Key findings and evidence")
     recommended_actions: list[str] = Field(description="Recommended SOC actions")
-    detection_rule_improvements: list[str] = Field(
-        description="Suggested detection rule improvements"
-    )
-    investigation_truncated: bool = Field(
-        default=False, description="True if the tool call limit was reached"
-    )
+    detection_rule_improvements: list[str] = Field(description="Suggested detection rule improvements")
+    investigation_truncated: bool = Field(default=False, description="True if the tool call limit was reached")
 
 
 class AnalystAgent(BaseAgent[AnalystModel]):
@@ -71,11 +61,9 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         model: str,
         runbook: Runbook,
         data_agents: list[BaseDataAgent],
-        identity: IdentityCapability | None = None,
+        identity: IdentityTool | None = None,
     ) -> None:
-        self._runbook = (
-            runbook  # must be set before super().__init__ calls self.instructions
-        )
+        self._runbook = runbook  # must be set before super().__init__ calls self.instructions
         names = [a.name for a in data_agents]
         if len(names) != len(set(names)):
             duplicates = {n for n in names if names.count(n) > 1}
@@ -101,9 +89,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         return None
 
     def investigate(self, alert: Alert) -> Investigation:
-        result = self.run_sync(
-            f"Investigate the following alert:\n{alert.model_dump_json()}"
-        )
+        result = self.run_sync(f"Investigate the following alert:\n{alert.model_dump_json()}")
         m = result.output
         report = IncidentReport(
             alert_id=alert.id,

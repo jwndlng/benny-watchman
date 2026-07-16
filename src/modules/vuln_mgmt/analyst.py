@@ -17,31 +17,23 @@ from src.capabilities.subagents.data.query_tool import make_query_tool
 from src.core.agents.base_agent import BaseAgent
 from src.core.orchestration.runbook_registry import Runbook
 from src.modules.vuln_mgmt.schemas.finding import Finding
-from src.modules.vuln_mgmt.tools.intel import VulnIntelCapability
+from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
 from src.modules.vuln_mgmt.schemas.report import VulnTriageReport
 from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
 
 
 class VulnAnalystModel(BaseModel):
-    exploitable: bool = Field(
-        description="Whether the vulnerability is exploitable in this environment"
-    )
+    exploitable: bool = Field(description="Whether the vulnerability is exploitable in this environment")
     priority: str = Field(description="Remediation priority (critical/high/medium/low)")
-    remediation_sla_days: int | None = Field(
-        default=None, description="Recommended remediation window in days"
-    )
+    remediation_sla_days: int | None = Field(default=None, description="Recommended remediation window in days")
     confidence: float = Field(description="Confidence score between 0.0 and 1.0")
     summary: str = Field(description="Concise triage summary")
     affected_assets: list[str] = Field(description="Assets affected")
     evidence: list[str] = Field(description="Key evidence supporting the assessment")
-    recommended_actions: list[str] = Field(
-        description="Recommended remediation actions"
-    )
+    recommended_actions: list[str] = Field(description="Recommended remediation actions")
     investigation_steps: list[str] = Field(description="What you checked, in order")
-    investigation_truncated: bool = Field(
-        default=False, description="True if the tool call limit was reached"
-    )
+    investigation_truncated: bool = Field(default=False, description="True if the tool call limit was reached")
 
 
 class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
@@ -62,7 +54,7 @@ class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
         model: str,
         runbook: Runbook,
         data_agents: list[BaseDataAgent],
-        intel: VulnIntelCapability,
+        intel: VulnIntelTool,
     ) -> None:
         self._runbook = runbook
         names = [a.name for a in data_agents]
@@ -87,9 +79,7 @@ class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
         return await self._intel.enrich(cve)
 
     def investigate(self, finding: Finding) -> Investigation:
-        result = self.run_sync(
-            f"Triage the following vulnerability finding:\n{finding.model_dump_json()}"
-        )
+        result = self.run_sync(f"Triage the following vulnerability finding:\n{finding.model_dump_json()}")
         m = result.output
         report = VulnTriageReport(
             finding_id=finding.id,

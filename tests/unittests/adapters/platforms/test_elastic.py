@@ -93,9 +93,7 @@ def test_fetch_open_filters_and_maps_to_alert():
 
     # request filtered on open workflow status
     _, _, body = fake.calls[0]
-    assert body["query"]["bool"]["filter"] == [
-        {"term": {"kibana.alert.workflow_status": "open"}}
-    ]
+    assert body["query"]["bool"]["filter"] == [{"term": {"kibana.alert.workflow_status": "open"}}]
     # mapped to a valid Alert-shaped dict
     assert len(items) == 1
     item = items[0]
@@ -117,11 +115,7 @@ def test_set_status_maps_to_workflow_status():
     platform, fake = _platform()
     platform.set_status("alert-1", TriageStatus.CLOSED)
     platform.set_status("alert-1", TriageStatus.ESCALATED)
-    statuses = [
-        c[2]["status"]
-        for c in fake.calls
-        if c[1] == "/api/detection_engine/signals/status"
-    ]
+    statuses = [c[2]["status"] for c in fake.calls if c[1] == "/api/detection_engine/signals/status"]
     assert statuses == ["closed", "acknowledged"]
 
 
@@ -170,9 +164,7 @@ def test_platform_selection_by_config():
     from src.adapters.platforms.memory import InMemoryTriagePlatform
 
     configured = SimpleNamespace(
-        kibana=SimpleNamespace(
-            url="https://kibana", api_key="key", case_owner="securitySolution"
-        )
+        kibana=SimpleNamespace(url="https://kibana", api_key="key", case_owner="securitySolution")
     )
     assert isinstance(_select_triage_platform(configured), ElasticSecurityPlatform)
 
