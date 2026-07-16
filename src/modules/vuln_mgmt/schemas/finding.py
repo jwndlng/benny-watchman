@@ -12,11 +12,7 @@ class Finding(BaseModel):
     asset: str = Field(description="Affected asset identifier (host, IP, or asset id)")
     cvss: float = Field(description="CVSS base score, 0.0–10.0")
     title: str = Field(description="Short human-readable finding title")
-    description: str = Field(
-        description="Full finding description with context for triage"
-    )
+    description: str = Field(description="Full finding description with context for triage")
     source: str = Field(description="Scanner or tool that produced the finding")
     detected_at: datetime = Field(description="When the finding was detected")
-    raw: dict[str, object] = Field(
-        default_factory=dict, description="Raw finding payload from the scanner"
-    )
+    raw: dict[str, object] = Field(default_factory=dict, description="Raw finding payload from the scanner")

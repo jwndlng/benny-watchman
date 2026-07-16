@@ -11,15 +11,11 @@ from src.capabilities.tools.identity.okta import OktaClient
 
 _ORG = "https://example.okta.com"
 _CLIENT_ID = "0oa_test_client_id"
-_TEST_JWK = base64.b64encode(
-    json.dumps({"kid": "test-kid", "kty": "RSA"}).encode()
-).decode()
+_TEST_JWK = base64.b64encode(json.dumps({"kid": "test-kid", "kty": "RSA"}).encode()).decode()
 
 
 def _make_client(sdk_mock: MagicMock) -> OktaClient:
-    with patch(
-        "src.capabilities.tools.identity.okta.OktaSDKClient", return_value=sdk_mock
-    ):
+    with patch("src.capabilities.tools.identity.okta.OktaSDKClient", return_value=sdk_mock):
         return OktaClient(
             org_url=_ORG,
             client_id=_CLIENT_ID,
@@ -105,9 +101,7 @@ async def test_get_user_full_profile():
 @pytest.mark.anyio
 async def test_get_user_sparse_profile_uses_fallbacks():
     sdk = AsyncMock()
-    user = _mock_user(
-        department=None, title=None, city=None, timezone=None, userType=None
-    )
+    user = _mock_user(department=None, title=None, city=None, timezone=None, userType=None)
     manager = _mock_manager()
     sdk.get_user.side_effect = [(user, MagicMock(), None), (manager, MagicMock(), None)]
     sdk.list_linked_objects_for_user.return_value = ([], MagicMock(), None)

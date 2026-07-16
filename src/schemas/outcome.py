@@ -11,9 +11,5 @@ from pydantic import BaseModel, Field
 class Outcome(BaseModel):
     """Cross-domain summary of an investigation's result."""
 
-    disposition: str = Field(
-        description="Domain verdict mapped to a common label (e.g. true_positive, exploitable)"
-    )
-    priority: str = Field(
-        description="Severity/priority mapped to a common label (e.g. high, P1)"
-    )
+    disposition: str = Field(description="Domain verdict mapped to a common label (e.g. true_positive, exploitable)")
+    priority: str = Field(description="Severity/priority mapped to a common label (e.g. high, P1)")

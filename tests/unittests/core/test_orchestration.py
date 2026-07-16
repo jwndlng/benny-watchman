@@ -145,9 +145,7 @@ def test_siem_module_dedup_key_is_alert_id():
 def test_vuln_module_accepts_finding_only():
     from src.modules.vuln_mgmt.module import VulnModule
 
-    module = VulnModule(
-        model="test:stub", runbooks=MagicMock(), intel=MagicMock(), data_sources=[]
-    )
+    module = VulnModule(model="test:stub", runbooks=MagicMock(), intel=MagicMock(), data_sources=[])
     assert module.accepts(VALID_FINDING) is True
     assert module.accepts(VALID_ALERT) is False  # missing cve/asset/cvss
 
@@ -156,7 +154,5 @@ def test_vuln_module_dedup_key_is_cve_asset_cvss():
     from src.modules.vuln_mgmt.schemas.finding import Finding
     from src.modules.vuln_mgmt.module import VulnModule
 
-    module = VulnModule(
-        model="test:stub", runbooks=MagicMock(), intel=MagicMock(), data_sources=[]
-    )
+    module = VulnModule(model="test:stub", runbooks=MagicMock(), intel=MagicMock(), data_sources=[])
     assert module.dedup_key(Finding(**VALID_FINDING)) == "CVE-2024-1234:host-01:9.8"

@@ -16,9 +16,7 @@ from src.core.agents.base_agent import BaseAgent
 class DataModel(BaseModel):
     """Structured result returned by any DataAgent run."""
 
-    rows: list[dict[str, object]] = Field(
-        description="Rows retrieved matching the request"
-    )
+    rows: list[dict[str, object]] = Field(description="Rows retrieved matching the request")
     notes: str = Field(description="What was queried and any relevant context")
 
 
@@ -49,8 +47,7 @@ class BaseDataAgent(BaseAgent[DataModel]):
         """
         if self._routing_description is None:
             raise RuntimeError(
-                f"DataAgent '{self._name}' has not been initialized. "
-                "Call await agent.initialize() before use."
+                f"DataAgent '{self._name}' has not been initialized. Call await agent.initialize() before use."
             )
         return self._routing_description
 
@@ -68,7 +65,6 @@ class BaseDataAgent(BaseAgent[DataModel]):
         """Run the data agent, guarding against uninitialized state."""
         if self._routing_description is None:
             raise RuntimeError(
-                f"DataAgent '{self._name}' has not been initialized. "
-                "Call await agent.initialize() before use."
+                f"DataAgent '{self._name}' has not been initialized. Call await agent.initialize() before use."
             )
         return await super().run(prompt, **kwargs)

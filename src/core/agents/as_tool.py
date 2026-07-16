@@ -29,7 +29,7 @@ def agent_as_tool[T](
 
     # No return annotation on the closure: PydanticAI introspects it to build the
     # tool, and a leaked type-param (T) is an unresolvable ForwardRef at that point.
-    async def tool_fn(request: str):  # noqa: ANN202
+    async def tool_fn(request: str):
         with logfire.span(name, request=request):
             result = await agent.run(request)
             return result.output

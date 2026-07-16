@@ -22,6 +22,4 @@ def investigate(body: InvestigateRequest, request: Request) -> JSONResponse:
             status_code=422,
         )
     status_code = 202 if result.created else 200
-    return JSONResponse(
-        result.investigation.model_dump(mode="json"), status_code=status_code
-    )
+    return JSONResponse(result.investigation.model_dump(mode="json"), status_code=status_code)

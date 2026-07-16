@@ -38,10 +38,7 @@ class BaseModel(Generic[M]):
 
     def list(self) -> list[M]:
         """Return all records in the table."""
-        return [
-            self._model_type.model_validate_json(d)
-            for d in self._engine.fetch_all(self._table)
-        ]
+        return [self._model_type.model_validate_json(d) for d in self._engine.fetch_all(self._table)]
 
 
 class InvestigationModel(BaseModel[Investigation]):

@@ -13,9 +13,7 @@ def restore_logging():
     root = logging.getLogger()
     saved_handlers = root.handlers[:]
     saved_level = root.level
-    saved_noisy = {
-        name: logging.getLogger(name).level for name in ("httpx", "elastic_transport")
-    }
+    saved_noisy = {name: logging.getLogger(name).level for name in ("httpx", "elastic_transport")}
     try:
         yield
     finally:

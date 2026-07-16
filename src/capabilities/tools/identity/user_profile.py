@@ -15,9 +15,7 @@ class UserProfile(BaseModel):
     manager: str = Field(description="Direct manager")
     employment_status: str = Field(description="active | on_leave | terminated")
     start_date: date = Field(description="Employment start date")
-    termination_date: date | None = Field(
-        description="Scheduled termination date if known"
-    )
+    termination_date: date | None = Field(description="Scheduled termination date if known")
     tenure_days: int = Field(description="Number of days employed as of today")
     work_location: str = Field(description="Primary office location or 'remote'")
     timezone: str = Field(description="Work timezone")

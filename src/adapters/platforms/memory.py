@@ -29,20 +29,14 @@ class InMemoryTriagePlatform:
 
     def __init__(self, items: list[dict]) -> None:
         self._items: dict[str, dict] = {item["id"]: item for item in items}
-        self._status: dict[str, TriageStatus] = {
-            item["id"]: TriageStatus.OPEN for item in items
-        }
+        self._status: dict[str, TriageStatus] = {item["id"]: TriageStatus.OPEN for item in items}
         self._severity: dict[str, str] = {}
         self._comments: dict[str, list[str]] = {}
         self._cases: list[Case] = []
         self._case_seq = 0
 
     def fetch_open(self, limit: int = 50) -> list[dict]:
-        open_items = [
-            item
-            for item_id, item in self._items.items()
-            if self._status.get(item_id) == TriageStatus.OPEN
-        ]
+        open_items = [item for item_id, item in self._items.items() if self._status.get(item_id) == TriageStatus.OPEN]
         return open_items[:limit]
 
     def get(self, item_id: str) -> dict | None:
@@ -60,9 +54,7 @@ class InMemoryTriagePlatform:
     def create_case(self, item_id: str, investigation: Investigation) -> str:
         self._case_seq += 1
         case_id = f"case-{self._case_seq}"
-        self._cases.append(
-            Case(case_id=case_id, item_id=item_id, investigation_id=investigation.id)
-        )
+        self._cases.append(Case(case_id=case_id, item_id=item_id, investigation_id=investigation.id))
         return case_id
 
     def health_check(self) -> dict:

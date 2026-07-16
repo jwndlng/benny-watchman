@@ -64,9 +64,7 @@ class ElasticDataAgent(BaseDataAgent):
     ) -> None:
         self._name = name
         self._routing_description = None
-        self._engine = ElasticsearchEngine(
-            host=host, api_key=api_key, index_pattern=index_pattern
-        )
+        self._engine = ElasticsearchEngine(host=host, api_key=api_key, index_pattern=index_pattern)
         super().__init__(
             model=model,
             output_type=DataModel,
@@ -86,9 +84,7 @@ class ElasticDataAgent(BaseDataAgent):
         """
         tables = await self._engine.list_tables()
         if not tables:
-            self._routing_description = (
-                f"Elasticsearch source '{self._name}': no indices found."
-            )
+            self._routing_description = f"Elasticsearch source '{self._name}': no indices found."
             return
 
         # Group by prefix — determines which patterns the agent should use in queries
@@ -98,9 +94,7 @@ class ElasticDataAgent(BaseDataAgent):
             groups.setdefault(prefix, []).append(t.name)
 
         # Single schema call over the full pattern (not per-group)
-        full_pattern = self._engine._index_pattern or ",".join(
-            sorted({_index_prefix(t.name) for t in tables})
-        )
+        full_pattern = self._engine._index_pattern or ",".join(sorted({_index_prefix(t.name) for t in tables}))
         try:
             schema = await self._engine.get_schema(full_pattern)
             field_names = ", ".join(c.name for c in schema[:50])
@@ -123,16 +117,13 @@ class ElasticDataAgent(BaseDataAgent):
                 group_lines.append(f"  {indices[0]}")
 
         parts = [
-            f"Elasticsearch data source '{self._name}'. "
-            f"{len(tables)} indices across {len(groups)} groups.",
+            f"Elasticsearch data source '{self._name}'. {len(tables)} indices across {len(groups)} groups.",
             "Available index groups (use as FROM patterns):\n" + "\n".join(group_lines),
             f"Common fields (sample from {full_pattern}):\n  {field_names}",
             f"Sample document:\n  {sample_str}",
         ]
         self._routing_description = "\n\n".join(parts)
-        logfire.info(
-            "ElasticDataAgent initialized", name=self._name, groups=len(groups)
-        )
+        logfire.info("ElasticDataAgent initialized", name=self._name, groups=len(groups))
 
     async def list_tables(self) -> list[TableInfo]:
         """Return all Elasticsearch index names available for querying."""

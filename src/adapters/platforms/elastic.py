@@ -81,9 +81,7 @@ class ElasticSecurityPlatform:
 
     def fetch_open(self, limit: int = 50) -> list[dict]:
         body = {
-            "query": {
-                "bool": {"filter": [{"term": {"kibana.alert.workflow_status": "open"}}]}
-            },
+            "query": {"bool": {"filter": [{"term": {"kibana.alert.workflow_status": "open"}}]}},
             "sort": [{"@timestamp": "desc"}],
             "size": limit,
         }
@@ -169,13 +167,7 @@ class ElasticSecurityPlatform:
             resp = self._client.post(
                 _SIGNALS_SEARCH,
                 json={
-                    "query": {
-                        "bool": {
-                            "filter": [
-                                {"term": {"kibana.alert.workflow_status": "open"}}
-                            ]
-                        }
-                    },
+                    "query": {"bool": {"filter": [{"term": {"kibana.alert.workflow_status": "open"}}]}},
                     "size": 0,
                 },
             )
@@ -183,15 +175,13 @@ class ElasticSecurityPlatform:
             total = resp.json().get("hits", {}).get("total", 0)
             open_alerts = total.get("value") if isinstance(total, dict) else total
             checks["alerts_read"] = "ok"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             checks["alerts_read"] = f"error: {exc}"
         try:
-            resp = self._client.get(
-                f"{_CASES}/_find", params={"owner": self._owner, "perPage": 1}
-            )
+            resp = self._client.get(f"{_CASES}/_find", params={"owner": self._owner, "perPage": 1})
             resp.raise_for_status()
             checks["cases_access"] = "ok"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             checks["cases_access"] = f"error: {exc}"
         return {
             "platform": "elastic",
@@ -204,18 +194,14 @@ class ElasticSecurityPlatform:
 
     def _require_case(self, item_id: str) -> tuple[str, str]:
         if item_id not in self._case:
-            raise ValueError(
-                f"no case for item {item_id}; call create_case before comment/set_severity"
-            )
+            raise ValueError(f"no case for item {item_id}; call create_case before comment/set_severity")
         return self._case[item_id]
 
     def _attach_alert(self, case_id: str, item_id: str) -> None:
         """Best-effort RAC alert attachment; skipped if the source index is unknown."""
         index = self._index.get(item_id)
         if not index:
-            logfire.info(
-                "elastic: no index for alert, skipping attach", item_id=item_id
-            )
+            logfire.info("elastic: no index for alert, skipping attach", item_id=item_id)
             return
         try:
             resp = self._client.post(
@@ -229,10 +215,8 @@ class ElasticSecurityPlatform:
                 },
             )
             resp.raise_for_status()
-        except httpx.HTTPError as exc:  # noqa: BLE001
-            logfire.warn(
-                "elastic: alert attach failed", item_id=item_id, error=str(exc)
-            )
+        except httpx.HTTPError as exc:
+            logfire.warn("elastic: alert attach failed", item_id=item_id, error=str(exc))
 
     def _to_alert(self, hit: dict) -> dict:
         src = hit.get("_source", {})

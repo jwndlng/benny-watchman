@@ -90,11 +90,7 @@ def client(tmp_path):
             patch("src.modules.siem.module.AnalystAgent") as mock_cls,
             patch("src.modules.vuln_mgmt.module.VulnAnalystAgent") as vuln_cls,
         ):
-            mock_cls.return_value.investigate.side_effect = lambda alert: (
-                _stub_investigation(alert.id, "generic")
-            )
-            vuln_cls.return_value.investigate.side_effect = lambda finding: (
-                _stub_investigation(finding.id, "generic")
-            )
+            mock_cls.return_value.investigate.side_effect = lambda alert: _stub_investigation(alert.id, "generic")
+            vuln_cls.return_value.investigate.side_effect = lambda finding: _stub_investigation(finding.id, "generic")
             with TestClient(app) as client:
                 yield client

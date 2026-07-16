@@ -10,9 +10,7 @@ def engine(tmp_path):
     """In-memory SQLiteEngine with a populated test table."""
     db = SQLiteEngine(str(tmp_path / "test.db"))
     conn = db._conn
-    conn.execute(
-        "CREATE TABLE events (id INTEGER PRIMARY KEY, name TEXT NOT NULL, count INTEGER)"
-    )
+    conn.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, name TEXT NOT NULL, count INTEGER)")
     conn.execute("INSERT INTO events VALUES (1, 'login', 10)")
     conn.execute("INSERT INTO events VALUES (2, 'logout', 5)")
     conn.commit()

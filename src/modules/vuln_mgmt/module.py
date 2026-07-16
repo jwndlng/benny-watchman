@@ -41,7 +41,7 @@ class VulnModule:
         try:
             Finding(**raw)
             return True
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     def dedup_key(self, finding: Finding) -> str:

@@ -24,9 +24,7 @@ class OktaClient:
 
     def __init__(self, org_url: str, client_id: str, private_key_b64: str) -> None:
         if not private_key_b64:
-            raise ValueError(
-                "OKTA_PRIVATE_KEY is empty — check that the env var is set and passed to the container"
-            )
+            raise ValueError("OKTA_PRIVATE_KEY is empty — check that the env var is set and passed to the container")
         jwk_str = base64.b64decode(private_key_b64).decode()
         jwk = json.loads(jwk_str)
         self._client = OktaSDKClient(
@@ -64,9 +62,7 @@ class OktaClient:
                     name = f"{p.firstName} {p.lastName}".strip()
                     return name or "unknown"
 
-            managers, _, err = await self._client.list_linked_objects_for_user(
-                user.id, "manager", None
-            )
+            managers, _, err = await self._client.list_linked_objects_for_user(user.id, "manager", None)
             if err or not managers:
                 return "unknown"
 

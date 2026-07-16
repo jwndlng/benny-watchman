@@ -22,9 +22,7 @@ def engine_with_pattern():
     with patch("src.adapters.engines.elasticsearch.Elasticsearch") as mock_cls:
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
-        eng = ElasticsearchEngine(
-            host="https://es:9200", api_key="key", index_pattern="logs-*"
-        )
+        eng = ElasticsearchEngine(host="https://es:9200", api_key="key", index_pattern="logs-*")
         eng._client = mock_client
         yield eng, mock_client
 
@@ -162,9 +160,7 @@ async def test_run_query_returns_dicts(engine):
         "columns": [{"name": "user.name"}, {"name": "count"}],
         "values": [["alice", 5], ["bob", 3]],
     }
-    rows = await eng.run_query(
-        "FROM logs-* | STATS count = COUNT(*) BY user.name | LIMIT 10"
-    )
+    rows = await eng.run_query("FROM logs-* | STATS count = COUNT(*) BY user.name | LIMIT 10")
     assert rows == [
         {"user.name": "alice", "count": 5},
         {"user.name": "bob", "count": 3},

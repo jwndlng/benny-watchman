@@ -11,9 +11,7 @@ from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
 
 
-def _investigation(
-    item_id: str, disposition: str, priority: str = "high"
-) -> Investigation:
+def _investigation(item_id: str, disposition: str, priority: str = "high") -> Investigation:
     now = datetime.now(timezone.utc)
     return Investigation(
         id=f"inv-{item_id}",
@@ -62,10 +60,7 @@ def test_benign_is_closed_and_true_positive_is_escalated():
 def test_limit_bounds_how_many_are_triaged():
     platform = InMemoryTriagePlatform([{"id": "a1"}, {"id": "a2"}, {"id": "a3"}])
     orch = _FakeOrchestrator(
-        {
-            item: HandleResult(_investigation(item, "false_positive"), created=True)
-            for item in ("a1", "a2", "a3")
-        }
+        {item: HandleResult(_investigation(item, "false_positive"), created=True) for item in ("a1", "a2", "a3")}
     )
 
     handled = run_once(orch, platform, hint="siem", limit=1)
@@ -97,8 +92,6 @@ def test_dedup_and_unresolved_are_skipped():
 def test_core_does_not_import_platforms():
     """Dependency direction: nothing under src/core imports src/platforms."""
     offenders = [
-        str(path)
-        for path in pathlib.Path("src/core").rglob("*.py")
-        if "src.adapters.platforms" in path.read_text()
+        str(path) for path in pathlib.Path("src/core").rglob("*.py") if "src.adapters.platforms" in path.read_text()
     ]
     assert offenders == [], f"core must not import platforms: {offenders}"

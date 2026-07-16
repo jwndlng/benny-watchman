@@ -28,27 +28,19 @@ _SKIP = "SKIP"
 
 
 class HarnessManager:
-    def run_all(
-        self, model: str, registry: RunbookRegistry, filter_name: str | None = None
-    ) -> HarnessReport:
+    def run_all(self, model: str, registry: RunbookRegistry, filter_name: str | None = None) -> HarnessReport:
         cases = ALL_CASES
         if filter_name:
             cases = [c for c in cases if c.name == filter_name]
             if not cases:
-                print(
-                    f"No case named '{filter_name}'. Available: {[c.name for c in ALL_CASES]}"
-                )
+                print(f"No case named '{filter_name}'. Available: {[c.name for c in ALL_CASES]}")
                 sys.exit(1)
 
         results: list[CaseResult] = []
         for case in cases:
             print(f"  Running {case.name} ...", end=" ", flush=True)
             result = case.run(model=model, registry=registry)
-            status = (
-                _PASS
-                if result.passed is True
-                else (_FAIL if result.passed is False else _SKIP)
-            )
+            status = _PASS if result.passed is True else (_FAIL if result.passed is False else _SKIP)
             print(status)
             results.append(result)
 
@@ -72,16 +64,12 @@ def _print_report(report: HarnessReport) -> None:
     for r in report.results:
         status = _PASS if r.passed is True else (_FAIL if r.passed is False else _SKIP)
         conf = f"{r.confidence:.0%}"
-        print(
-            f"{r.case_name:<35} {r.verdict.value:<20} {r.severity.value:<15} {conf:>5}  {status}"
-        )
+        print(f"{r.case_name:<35} {r.verdict.value:<20} {r.severity.value:<15} {conf:>5}  {status}")
         if r.error:
             for line in r.error.strip().splitlines()[-5:]:
                 print(f"  {line}")
     print("-" * 90)
-    print(
-        f"Total: {report.total}  Passed: {report.passed}  Failed: {report.failed}  No-assertion: {report.skipped}"
-    )
+    print(f"Total: {report.total}  Passed: {report.passed}  Failed: {report.failed}  No-assertion: {report.skipped}")
 
 
 if __name__ == "__main__":

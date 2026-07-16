@@ -68,9 +68,7 @@ def create_app(cfg: Config = config) -> FastAPI:
 
     mcp_token = cfg.mcp_bearer_token or secrets.token_urlsafe(32)
     if not cfg.mcp_bearer_token:
-        logger.warning(
-            "MCP_BEARER_TOKEN not set — generated ephemeral token: %s", mcp_token
-        )
+        logger.warning("MCP_BEARER_TOKEN not set — generated ephemeral token: %s", mcp_token)
 
     mcp_server = MCPServer()
 
@@ -152,9 +150,7 @@ def create_app(cfg: Config = config) -> FastAPI:
                 )
             )
 
-            app.state.orchestrator = OrchestratorAgent(
-                module_registry, persistence, capabilities
-            )
+            app.state.orchestrator = OrchestratorAgent(module_registry, persistence, capabilities)
             app.state.persistence = persistence
             app.state.registry = registry
             app.state.triage_platform = _select_triage_platform(cfg)
@@ -166,9 +162,7 @@ def create_app(cfg: Config = config) -> FastAPI:
             )
 
             # Early feedback: probe the triage platform at startup (non-blocking).
-            health = await anyio.to_thread.run_sync(
-                app.state.triage_platform.health_check
-            )
+            health = await anyio.to_thread.run_sync(app.state.triage_platform.health_check)
             logger.info(
                 "triage platform (%s): ok=%s open_alerts=%s checks=%s",
                 health["platform"],
@@ -177,9 +171,7 @@ def create_app(cfg: Config = config) -> FastAPI:
                 health["checks"],
             )
             if not health["ok"]:
-                logfire.warning(
-                    "triage platform health check failed", checks=health["checks"]
-                )
+                logfire.warning("triage platform health check failed", checks=health["checks"])
             yield
 
             if elastic_agent is not None:

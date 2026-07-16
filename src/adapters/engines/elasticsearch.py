@@ -51,9 +51,7 @@ class ElasticsearchEngine:
                 )
                 raw: list[str] = list(response.get("indices", []))
             except TransportError:
-                cat_response = self._client.cat.indices(
-                    index=pattern, format="json", h="index"
-                )
+                cat_response = self._client.cat.indices(index=pattern, format="json", h="index")
                 raw = [r["index"] for r in cat_response]
             if not self._index_pattern:
                 raw = [i for i in raw if not i.startswith(".")]
@@ -79,9 +77,7 @@ class ElasticsearchEngine:
             result = []
             for name, type_map in fields.items():
                 field_type = next(iter(type_map.keys()), "object")
-                result.append(
-                    ColumnInfo(name=name, type=field_type, notnull=False, pk=False)
-                )
+                result.append(ColumnInfo(name=name, type=field_type, notnull=False, pk=False))
             return sorted(result, key=lambda c: c.name)
 
         return await asyncio.to_thread(_fetch)
@@ -91,9 +87,7 @@ class ElasticsearchEngine:
         """Return up to n documents from an index via ES|QL."""
 
         def _fetch() -> list[dict[str, object]]:
-            response = self._client.esql.query(
-                body={"query": f"FROM {index} | LIMIT {n}"}
-            )
+            response = self._client.esql.query(body={"query": f"FROM {index} | LIMIT {n}"})
             return _rows_from_esql(response)
 
         return await asyncio.to_thread(_fetch)
@@ -109,9 +103,7 @@ class ElasticsearchEngine:
 
         def _fetch(q: str) -> list[dict[str, object]]:
             response = self._client.esql.query(body={"query": q})
-            logfire.info(
-                "es_run_query result", row_count=len(response.get("values", []))
-            )  # type: ignore[union-attr]
+            logfire.info("es_run_query result", row_count=len(response.get("values", [])))  # type: ignore[union-attr]
             return _rows_from_esql(response)
 
         return await asyncio.to_thread(_fetch, esql)

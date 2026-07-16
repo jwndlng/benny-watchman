@@ -24,9 +24,7 @@ class SIEMModule:
     name = "siem"
     input_type = Alert
 
-    def __init__(
-        self, model: str, runbooks: RunbookRegistry, data_sources: list[str]
-    ) -> None:
+    def __init__(self, model: str, runbooks: RunbookRegistry, data_sources: list[str]) -> None:
         self._model = model
         self._runbooks = runbooks
         self._data_sources = data_sources
@@ -36,7 +34,7 @@ class SIEMModule:
         try:
             Alert(**raw)
             return True
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     def dedup_key(self, alert: Alert) -> str:
