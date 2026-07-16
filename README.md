@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.jpeg" alt="Benny Watchman logo" width="200">
+  <img src="logo.jpeg" alt="Benny Watchman logo">
 </p>
 
 # Benny, never sleeps, Watchman.
@@ -29,12 +29,11 @@ Benny is organized along a **horizontal / vertical** seam so new triage domains 
 - **Capabilities (horizontals)** — shared by every module:
   - **Data** — natural-language queries against a backend (SQLite / Elasticsearch / …)
   - **Identity** — user, role, and access context (Okta)
-  - **Enrichment** — threat intel for indicators / CVEs
+  - **Enrichment** *(planned)* — threat intel for indicators / CVEs
 - **Core** — `BaseAgent` framework, `OrchestratorAgent` (routing + idempotency), `ModuleRegistry`, and the `Capabilities` container.
-- **Platforms** — the operational systems Benny works *within* (`TriagePlatform`): they supply alerts to triage and receive his actions (comment, disposition, case, status). A triage-loop pulls open alerts → investigates → writes back (case-always; auto-closes benign, escalates real). Implementations: an in-memory reference platform (dev) and `ElasticSecurityPlatform` (Elastic Security, via the Kibana API). Selected by config; triggered by `POST /triage/run`.
-- **MCP server** — exposes Benny to LLM clients (Claude Code, Antigravity, …) at `/mcp`.
+- **Adapters** — the outer I/O ring: the REST API and MCP server (inbound), plus the systems Benny works *within* — **Platforms** (`TriagePlatform`: supply alerts, receive comment/disposition/case/status; a triage-loop pulls open alerts → investigates → writes back, case-always / auto-close benign / escalate real; in-memory dev impl + `ElasticSecurityPlatform` over the Kibana API; triggered by `POST /triage/run`), query **engines**, and persistence.
 
-Adding a triage domain = adding a `src/modules/<domain>/` folder that implements the `AnalystModule` contract. The layout mirrors this seam: `src/core/`, `src/capabilities/`, `src/modules/`, `src/platforms/`, `src/mcp/{server,clients}/`.
+Adding a triage domain = adding a `src/modules/<domain>/` folder that implements the `AnalystModule` contract. The layout makes the layering explicit: `src/core/` (framework), `src/capabilities/{subagents,tools}/` (shared skills), `src/modules/` (self-contained verticals), and `src/adapters/{api,mcp,platforms,engines}/` (the I/O ring). Dependencies point inward.
 
 ## Components
 

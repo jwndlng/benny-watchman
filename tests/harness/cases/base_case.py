@@ -9,10 +9,10 @@ import traceback
 from abc import ABC, abstractmethod
 
 from src.modules.siem.analyst import AnalystAgent
-from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
+from src.capabilities.subagents.data.sqlite_data_agent import SQLiteDataAgent
 from src.core.orchestration.runbook_registry import RunbookRegistry
-from src.modules.siem.alert import Alert
-from src.modules.siem.incident_report import Severity, Verdict
+from src.modules.siem.schemas.alert import Alert
+from src.modules.siem.schemas.incident_report import Severity, Verdict
 from tests.harness.judge import Judge
 from tests.harness.schema import CaseResult
 from tests.harness.seeder.base_dataset import BaseDataset

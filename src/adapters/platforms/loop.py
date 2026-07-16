@@ -11,11 +11,11 @@ from typing import TYPE_CHECKING
 
 import logfire
 
-from src.platforms.base import TriageStatus
+from src.adapters.platforms.base import TriageStatus
 
 if TYPE_CHECKING:
     from src.core.orchestration.orchestrator import OrchestratorAgent
-    from src.platforms.base import TriagePlatform
+    from src.adapters.platforms.base import TriagePlatform
     from src.schemas.investigation import Investigation
 
 # Dispositions Benny may auto-close. Anything else escalates — when unsure, escalate.

@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from src.api.app import create_app
-from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
+from src.adapters.api.app import create_app
+from src.modules.siem.schemas.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.investigation import Investigation, InvestigationStatus
 from tests.harness.seeder.synthetic_db import SyntheticDataset
 
@@ -85,7 +85,7 @@ def client(tmp_path):
     mock_data_agent.name = "security_logs"
     mock_data_agent.routing_description = "Mock data source for tests."
     mock_data_agent.initialize = AsyncMock()
-    with patch("src.api.app.SQLiteDataAgent", return_value=mock_data_agent):
+    with patch("src.adapters.api.app.SQLiteDataAgent", return_value=mock_data_agent):
         with (
             patch("src.modules.siem.module.AnalystAgent") as mock_cls,
             patch("src.modules.vuln_mgmt.module.VulnAnalystAgent") as vuln_cls,

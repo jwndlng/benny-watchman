@@ -11,14 +11,14 @@ import os
 
 import pytest
 
-from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
+from src.capabilities.subagents.data.sqlite_data_agent import SQLiteDataAgent
 from src.core.orchestration.capabilities import Capabilities
 from src.core.orchestration.module_registry import ModuleRegistry
 from src.core.orchestration.orchestrator import OrchestratorAgent
 from src.core.orchestration.runbook_registry import RunbookRegistry
-from src.models import ModelFactory
-from src.modules.vuln_mgmt.finding import Finding
-from src.modules.vuln_mgmt.intel import VulnIntelCapability
+from src.adapters.persistence import ModelFactory
+from src.modules.vuln_mgmt.schemas.finding import Finding
+from src.modules.vuln_mgmt.tools.intel import VulnIntelCapability
 from src.modules.vuln_mgmt.module import VulnModule
 from src.schemas.investigation import InvestigationStatus
 from tests.harness.seeder.asset_db import PLANTED_ASSET, PLANTED_CVE, AssetDataset

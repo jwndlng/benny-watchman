@@ -4,9 +4,9 @@ import pathlib
 from datetime import datetime, timezone
 
 from src.core.orchestration.orchestrator import HandleResult
-from src.platforms.base import TriageStatus
-from src.platforms.loop import run_once
-from src.platforms.memory import InMemoryTriagePlatform
+from src.adapters.platforms.base import TriageStatus
+from src.adapters.platforms.loop import run_once
+from src.adapters.platforms.memory import InMemoryTriagePlatform
 from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
 
@@ -99,6 +99,6 @@ def test_core_does_not_import_platforms():
     offenders = [
         str(path)
         for path in pathlib.Path("src/core").rglob("*.py")
-        if "src.platforms" in path.read_text()
+        if "src.adapters.platforms" in path.read_text()
     ]
     assert offenders == [], f"core must not import platforms: {offenders}"

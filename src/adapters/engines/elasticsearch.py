@@ -8,7 +8,7 @@ import re
 import logfire
 from elasticsearch import Elasticsearch, TransportError
 
-from src.engines.base import ColumnInfo, TableInfo
+from src.adapters.engines.base import ColumnInfo, TableInfo
 
 
 def _rows_from_esql(response: object) -> list[dict[str, object]]:

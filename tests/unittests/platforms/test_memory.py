@@ -1,7 +1,7 @@
 """Unit tests for InMemoryTriagePlatform."""
 
-from src.platforms.base import TriagePlatform, TriageStatus
-from src.platforms.memory import InMemoryTriagePlatform
+from src.adapters.platforms.base import TriagePlatform, TriageStatus
+from src.adapters.platforms.memory import InMemoryTriagePlatform
 
 
 def test_satisfies_the_protocol():

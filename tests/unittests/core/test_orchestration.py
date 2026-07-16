@@ -136,7 +136,7 @@ def test_siem_module_accepts_valid_alert_only():
 
 
 def test_siem_module_dedup_key_is_alert_id():
-    from src.modules.siem.alert import Alert
+    from src.modules.siem.schemas.alert import Alert
 
     module = SIEMModule(model="test:stub", runbooks=MagicMock(), data_sources=[])
     assert module.dedup_key(Alert(**VALID_ALERT)) == "alert-001"
@@ -153,7 +153,7 @@ def test_vuln_module_accepts_finding_only():
 
 
 def test_vuln_module_dedup_key_is_cve_asset_cvss():
-    from src.modules.vuln_mgmt.finding import Finding
+    from src.modules.vuln_mgmt.schemas.finding import Finding
     from src.modules.vuln_mgmt.module import VulnModule
 
     module = VulnModule(

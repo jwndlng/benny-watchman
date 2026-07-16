@@ -6,16 +6,16 @@ from typing import TYPE_CHECKING
 
 from mcp.server.fastmcp import FastMCP
 
-from src.mcp.server.auth import BearerAuthMiddleware
-from src.mcp.server.tools import register_tools
+from src.adapters.mcp.server.auth import BearerAuthMiddleware
+from src.adapters.mcp.server.tools import register_tools
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-    from src.capabilities.data.base_data_agent import BaseDataAgent
+    from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
     from src.core.orchestration.orchestrator import OrchestratorAgent
     from src.core.orchestration.runbook_registry import RunbookRegistry
-    from src.platforms.base import TriagePlatform
+    from src.adapters.platforms.base import TriagePlatform
 
 
 class MCPServer:

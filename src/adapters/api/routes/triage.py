@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from src.platforms.loop import run_once
+from src.adapters.platforms.loop import run_once
 
 router = APIRouter()
 

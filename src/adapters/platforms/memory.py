@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from src.platforms.base import TriageStatus
+from src.adapters.platforms.base import TriageStatus
 
 if TYPE_CHECKING:
     from src.schemas.investigation import Investigation

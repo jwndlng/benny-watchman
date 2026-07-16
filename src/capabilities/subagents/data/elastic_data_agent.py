@@ -7,9 +7,9 @@ import re
 
 import logfire
 
-from src.capabilities.data.base_data_agent import BaseDataAgent, DataModel
-from src.engines.base import ColumnInfo, TableInfo
-from src.engines.elasticsearch import ElasticsearchEngine
+from src.capabilities.subagents.data.base_data_agent import BaseDataAgent, DataModel
+from src.adapters.engines.base import ColumnInfo, TableInfo
+from src.adapters.engines.elasticsearch import ElasticsearchEngine
 
 
 def _index_prefix(name: str) -> str:

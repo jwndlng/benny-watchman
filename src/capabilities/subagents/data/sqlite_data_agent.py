@@ -4,9 +4,9 @@ import json
 
 import logfire
 
-from src.capabilities.data.base_data_agent import BaseDataAgent, DataModel
-from src.engines.base import ColumnInfo, TableInfo
-from src.engines.sqlite import SQLiteEngine
+from src.capabilities.subagents.data.base_data_agent import BaseDataAgent, DataModel
+from src.adapters.engines.base import ColumnInfo, TableInfo
+from src.adapters.engines.sqlite import SQLiteEngine
 
 
 class SQLiteDataAgent(BaseDataAgent):

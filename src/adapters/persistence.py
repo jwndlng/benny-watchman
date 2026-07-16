@@ -9,7 +9,7 @@ from typing import Generic, TypeVar
 from pydantic import BaseModel as PydanticBaseModel
 
 from src.config import config
-from src.engines.sqlite import SQLiteEngine
+from src.adapters.engines.sqlite import SQLiteEngine
 from src.schemas.investigation import Investigation
 
 M = TypeVar("M", bound=PydanticBaseModel)

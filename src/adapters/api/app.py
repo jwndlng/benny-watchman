@@ -12,29 +12,29 @@ import anyio
 import logfire
 from fastapi import FastAPI
 
-from src.api.routes.findings import router as findings_router
-from src.api.routes.hunt import router as hunt_router
-from src.api.routes.investigate import router as investigate_router
-from src.api.routes.investigations import router as investigations_router
-from src.api.routes.reports import router as reports_router
-from src.api.routes.runbooks import router as runbooks_router
-from src.api.routes.triage import router as triage_router
-from src.capabilities.data.elastic_data_agent import ElasticDataAgent
-from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
-from src.capabilities.identity.assessment import IdentityCapability
-from src.capabilities.identity.okta import OktaClient
+from src.adapters.api.routes.findings import router as findings_router
+from src.adapters.api.routes.hunt import router as hunt_router
+from src.adapters.api.routes.investigate import router as investigate_router
+from src.adapters.api.routes.investigations import router as investigations_router
+from src.adapters.api.routes.reports import router as reports_router
+from src.adapters.api.routes.runbooks import router as runbooks_router
+from src.adapters.api.routes.triage import router as triage_router
+from src.capabilities.subagents.data.elastic_data_agent import ElasticDataAgent
+from src.capabilities.subagents.data.sqlite_data_agent import SQLiteDataAgent
+from src.capabilities.tools.identity.assessment import IdentityCapability
+from src.capabilities.tools.identity.okta import OktaClient
 from src.config import Config, config
 from src.core.orchestration.capabilities import Capabilities
 from src.core.orchestration.module_registry import ModuleRegistry
 from src.core.orchestration.orchestrator import OrchestratorAgent
 from src.core.orchestration.runbook_registry import RunbookRegistry
-from src.mcp.server.app import MCPServer
-from src.models import ModelFactory
+from src.adapters.mcp.server.app import MCPServer
+from src.adapters.persistence import ModelFactory
 from src.modules.siem.module import SIEMModule
-from src.platforms.base import TriagePlatform
-from src.platforms.elastic import ElasticSecurityPlatform
-from src.platforms.memory import InMemoryTriagePlatform
-from src.modules.vuln_mgmt.intel import VulnIntelCapability
+from src.adapters.platforms.base import TriagePlatform
+from src.adapters.platforms.elastic import ElasticSecurityPlatform
+from src.adapters.platforms.memory import InMemoryTriagePlatform
+from src.modules.vuln_mgmt.tools.intel import VulnIntelCapability
 from src.modules.vuln_mgmt.module import VulnModule
 
 logger = logging.getLogger(__name__)

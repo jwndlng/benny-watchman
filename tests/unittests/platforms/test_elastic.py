@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.platforms.base import TriagePlatform, TriageStatus
-from src.platforms.elastic import ElasticSecurityPlatform
+from src.adapters.platforms.base import TriagePlatform, TriageStatus
+from src.adapters.platforms.elastic import ElasticSecurityPlatform
 from src.schemas.investigation import Investigation, InvestigationStatus
 
 
@@ -105,7 +105,7 @@ def test_fetch_open_filters_and_maps_to_alert():
 
 
 def test_mapped_item_validates_as_alert():
-    from src.modules.siem.alert import Alert
+    from src.modules.siem.schemas.alert import Alert
 
     platform, _ = _platform()
     item = platform.fetch_open()[0]
@@ -166,8 +166,8 @@ def test_comment_without_case_raises():
 def test_platform_selection_by_config():
     from types import SimpleNamespace
 
-    from src.api.app import _select_triage_platform
-    from src.platforms.memory import InMemoryTriagePlatform
+    from src.adapters.api.app import _select_triage_platform
+    from src.adapters.platforms.memory import InMemoryTriagePlatform
 
     configured = SimpleNamespace(
         kibana=SimpleNamespace(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.modules.siem.alert import Alert
+from src.modules.siem.schemas.alert import Alert
 from src.modules.siem.analyst import AnalystAgent
 
 if TYPE_CHECKING:

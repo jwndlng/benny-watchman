@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 from okta.client import Client as OktaSDKClient
 
-from src.capabilities.identity.user_profile import UserProfile
+from src.capabilities.tools.identity.user_profile import UserProfile
 
 _STATUS_MAP: dict[str, str] = {
     "ACTIVE": "active",

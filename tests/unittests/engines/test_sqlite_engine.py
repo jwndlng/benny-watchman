@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.engines.sqlite import SQLiteEngine
+from src.adapters.engines.sqlite import SQLiteEngine
 
 
 @pytest.fixture

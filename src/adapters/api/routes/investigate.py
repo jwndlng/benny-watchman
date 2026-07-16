@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from src.api.schemas.investigate_request import InvestigateRequest
+from src.adapters.api.schemas.investigate_request import InvestigateRequest
 
 router = APIRouter()
 

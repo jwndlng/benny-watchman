@@ -12,8 +12,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.capabilities.identity.okta import OktaClient
-    from src.capabilities.identity.user_profile import UserProfile
+    from src.capabilities.tools.identity.okta import OktaClient
+    from src.capabilities.tools.identity.user_profile import UserProfile
 
 
 class IdentityCapability:

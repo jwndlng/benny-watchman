@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from src.modules.siem.incident_report import Severity
+from src.modules.siem.schemas.incident_report import Severity
 
 
 class Alert(BaseModel):

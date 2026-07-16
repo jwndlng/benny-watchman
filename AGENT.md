@@ -104,25 +104,29 @@ Alternatively register it in any other LLM agent such as Antigravity CLI (`~/.ge
 
 ## Project Structure
 
-Source is organized along a horizontal/vertical seam (see `openspec/changes/modular-soc-architecture`):
-- `src/core/` — domain-agnostic framework and orchestration (`core/agents/base_agent.py`, `core/orchestration/`)
-- `src/capabilities/` — cross-cutting horizontals shared by all domains: `data/` (DataAgents), `identity/` (Okta), `enrichment/`
-- `src/modules/` — per-domain verticals; `modules/siem/` (SIEM analyst, `Alert`/`IncidentReport`, `runbooks/`) and `modules/vuln_mgmt/` (VM analyst, `Finding`/`VulnTriageReport`, `runbooks/`, vuln-intel tool). Each module implements the `AnalystModule` contract and selects its data source(s) from `Capabilities` by name.
-- `src/platforms/` — the **TriagePlatform** primitive: the operational I/O boundary Benny works within (intake + tracking + write-back). `base.py` (the `TriagePlatform` Protocol + `TriageStatus`), `loop.py` (`run_once` triage-loop), `memory.py` (in-memory, dev), and `elastic.py` (`ElasticSecurityPlatform` — talks to the **Kibana** Security API: signals search + status + Cases; note the DataAgent↔Elasticsearch-API vs TriagePlatform↔Kibana-API split). Depends inward on `core`/`schemas` only — `core/` never imports `platforms/`.
-- `src/mcp/server/` — Benny AS an MCP server (FastMCP assembly, tools, auth); `src/mcp/clients/` — Benny AS a client of external MCP servers (e.g. ClickHouse)
-- `src/engines/`, `src/config.py`, `src/models.py`, `src/utils/` — shared infrastructure
+Source is organized along two axes (see `openspec/changes/layered-package-structure`): a **horizontal/vertical seam** (where code is shared) and a **boundary-kind split** (sub-agent vs tool). Everything that touches the outside world lives in an `adapters/` ring; dependencies point inward.
+- `src/core/` — domain-agnostic framework and orchestration (`core/agents/base_agent.py`, `core/orchestration/`). Imports only `schemas/`; never `modules/`, and never `adapters/` at runtime (one transitional exception: a `TYPE_CHECKING` `InvestigationModel` hint in `orchestration/orchestrator.py`, pending a persistence port).
+- `src/capabilities/` — cross-cutting **horizontals** shared by all domains, split by boundary kind: `subagents/` (LLM loops — `data/` DataAgents) and `tools/` (deterministic composites — `identity/` Okta). Horizontal-only: a tool used by a single module belongs to that module, not here.
+- `src/modules/` — **self-contained** per-domain verticals; each owns its analyst, `module.py` (`AnalystModule` contract), domain models under `schemas/`, module-local tools under `tools/`, and `runbooks/`. `modules/siem/` (SIEM analyst, `schemas/{alert,incident_report}`) and `modules/vuln_mgmt/` (VM analyst, `schemas/{finding,report}`, `tools/intel`). Each selects its data source(s) from `Capabilities` by name.
+- `src/adapters/` — the outer I/O ring; touches the outside world, depends inward on `core`/`capabilities`/`modules`:
+  - `adapters/api/` — FastAPI app (composition root `api/app.py`) + routes
+  - `adapters/mcp/server/` (Benny AS an MCP server: FastMCP assembly, tools, auth) and `adapters/mcp/clients/` (Benny AS a client of external MCP servers, e.g. ClickHouse)
+  - `adapters/platforms/` — the **TriagePlatform** primitive: `base.py` (Protocol + `TriageStatus`), `loop.py` (`run_once` triage-loop), `memory.py` (dev), `elastic.py` (`ElasticSecurityPlatform` over the **Kibana** Security API: signals search + status + Cases; note the DataAgent↔Elasticsearch-API vs TriagePlatform↔Kibana-API split)
+  - `adapters/engines/` — query engine abstraction (SQLite now, ClickHouse next)
+  - `adapters/persistence.py` — investigation persistence backed by an engine
+- `src/schemas/`, `src/config.py`, `src/utils/` — shared leaf infrastructure (no upward deps)
 
 ### Orchestration & the module contract
 - A triage domain is an `AnalystModule` (`src/core/orchestration/module.py`): a Protocol with `name`, `input_type`, `accepts(raw)`, and `investigate(inp, caps)`. Adding a domain means adding a module — not modifying core.
 - `OrchestratorAgent` (`src/core/orchestration/orchestrator.py`) exposes `handle(raw, hint=None)`: an explicit `hint` dispatches directly (no LLM); otherwise it resolves a module via `accepts()`. Routes to one module today; the return type leaves room for cross-module synthesis.
 - `ModuleRegistry` holds modules (domain-level); `RunbookRegistry` selects playbooks *within* a module — two registries at two levels.
-- `Capabilities` (`src/core/orchestration/capabilities.py`) is a typed container of shared instances (data agents, identity), built once at the composition root (`api/app.py`) and injected into `investigate()`. `SIEMModule` (`src/modules/siem/module.py`) is the first module.
-- The **triage-loop** (`src/platforms/loop.py`, `run_once`) closes the loop: fetch open items from a `TriagePlatform` → `handle()` → write back (case-always; auto-close benign, escalate real). It lives in `platforms/`, driven by the generic `outcome`, so `core/` stays unaware of it. Trigger: `POST /triage/run`.
+- `Capabilities` (`src/core/orchestration/capabilities.py`) is a typed container of shared instances (data agents, identity), built once at the composition root (`adapters/api/app.py`) and injected into `investigate()`. `SIEMModule` (`src/modules/siem/module.py`) is the first module.
+- The **triage-loop** (`src/adapters/platforms/loop.py`, `run_once`) closes the loop: fetch open items from a `TriagePlatform` → `handle()` → write back (case-always; auto-close benign, escalate real). It lives in `adapters/platforms/`, driven by the generic `outcome`, so `core/` stays unaware of it. Trigger: `POST /triage/run`.
 
 ## Key Files
 - `src/modules/siem/runbooks/` — SIEM runbook definitions (YAML frontmatter + Markdown)
-- `src/engines/` — Query engine abstractions (SQLite now, ClickHouse next)
+- `src/adapters/engines/` — Query engine abstractions (SQLite now, ClickHouse next)
 - `src/core/agents/base_agent.py` — BaseAgent framework
-- `src/modules/siem/analyst.py` — SIEM AnalystAgent; `src/capabilities/data/` — DataAgents
-- `src/models.py` — Persistence models backed by Engine
+- `src/modules/siem/analyst.py` — SIEM AnalystAgent; `src/capabilities/subagents/data/` — DataAgents
+- `src/adapters/persistence.py` — Persistence models backed by Engine
 - `src/core/orchestration/runbook_registry.py` — Runbook loader and matcher

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import logfire
 
-from src.platforms.base import TriageStatus
+from src.adapters.platforms.base import TriageStatus
 
 if TYPE_CHECKING:
     from src.schemas.investigation import Investigation

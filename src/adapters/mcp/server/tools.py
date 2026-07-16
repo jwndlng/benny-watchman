@@ -10,13 +10,13 @@ import anyio
 
 from mcp.server.fastmcp import FastMCP
 
-from src.capabilities.data.base_data_agent import BaseDataAgent
-from src.platforms.loop import run_once
+from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
+from src.adapters.platforms.loop import run_once
 
 if TYPE_CHECKING:
     from src.core.orchestration.orchestrator import OrchestratorAgent
     from src.core.orchestration.runbook_registry import RunbookRegistry
-    from src.platforms.base import TriagePlatform
+    from src.adapters.platforms.base import TriagePlatform
 
 
 def register_tools(

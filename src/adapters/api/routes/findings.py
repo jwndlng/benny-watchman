@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from src.modules.vuln_mgmt.finding import Finding
+from src.modules.vuln_mgmt.schemas.finding import Finding
 
 router = APIRouter()
 

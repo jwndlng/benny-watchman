@@ -11,7 +11,7 @@ from collections.abc import Callable
 import logfire
 from pydantic_ai import AgentRunResult
 
-from src.capabilities.data.base_data_agent import BaseDataAgent, DataModel
+from src.capabilities.subagents.data.base_data_agent import BaseDataAgent, DataModel
 
 
 def make_query_tool(data_agent: BaseDataAgent) -> Callable:
