@@ -43,7 +43,7 @@ Adding a triage domain = adding a `src/modules/<domain>/` folder that implements
 | SIEM module | vertical | Triages alerts → verdict + SOC actions |
 | Vulnerability Management module | vertical | Triages findings → exploitability, priority, remediation SLA |
 | `DataAgent` | capability | Translates NL data requests into backend queries (SQLite, Elasticsearch, …) |
-| `IdentityCapability` | capability | User / employment / access context (Okta) |
+| `IdentityTool` | capability | User / employment / access context (Okta) |
 | Enrichment | capability | Enriches IPs, domains, hashes, CVEs via threat intel |
 
 *Planned:* conversational MCP (`query`/`recall` through the orchestrator, incl. threat hunting), cross-module "lead-analyst" synthesis, detection-rule drafting.

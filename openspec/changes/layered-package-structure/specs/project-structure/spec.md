@@ -39,19 +39,15 @@ The system SHALL place MCP code under `src/adapters/mcp/`, split by role: `adapt
 ---
 
 ### Requirement: Dependency direction flows verticals → horizontals → framework
-The layout SHALL enforce an inward dependency direction. `core/` SHALL NOT import from `modules/` at all, and SHALL NOT import from `adapters/` at runtime; its only permitted `adapters/` reference is a `TYPE_CHECKING`-only import of the persistence model (`InvestigationModel`) used as a dependency-injection type hint, confined to `core/orchestration/` pending extraction of a persistence port into `core/`. `capabilities/` MAY import `core/` and `adapters/engines` but SHALL NOT import `modules/`. `modules/` MAY import `core/` and `capabilities/` but SHALL NOT import another module. `adapters/` (the outer ring, including the composition root `adapters/api/app.py`) MAY import `core/`, `capabilities/`, and `modules/` to wire the application.
+The layout SHALL enforce an inward dependency direction. `core/` SHALL NOT import from `modules/` or `adapters/` (it depends only on `schemas/` and the ports it owns under `core/ports/`; the orchestrator type-hints the persistence port `core.ports.persistence.InvestigationStore`, which `adapters.persistence` satisfies structurally). `capabilities/` MAY import `core/` and `adapters/engines` but SHALL NOT import `modules/`. `modules/` MAY import `core/` and `capabilities/` but SHALL NOT import another module. `adapters/` (the outer ring, including the composition root `adapters/api/app.py`) MAY import `core/`, `capabilities/`, and `modules/` to wire the application.
 
 #### Scenario: Capabilities do not depend on modules
 - **WHEN** the import graph of `src/capabilities/` is inspected
 - **THEN** no module under `src/capabilities/` imports from `src/modules/`
 
-#### Scenario: Core does not depend on modules
+#### Scenario: Core does not depend on modules or adapters
 - **WHEN** the import graph of `src/core/` is inspected
-- **THEN** it imports nothing from `src/modules/`
-
-#### Scenario: The transitional core→adapters typing edge is isolated
-- **WHEN** `src/core/` references an adapter
-- **THEN** the only such reference is the `TYPE_CHECKING` import of `InvestigationModel` from `src/adapters/persistence` for the orchestrator's injected `persistence` type hint, it is confined to `src/core/orchestration/`, and it introduces no runtime import from `core/` into `adapters/`
+- **THEN** it imports nothing from `src/modules/` or `src/adapters/`
 
 #### Scenario: Modules do not depend on each other
 - **WHEN** the import graph of any `src/modules/<module>/` is inspected
