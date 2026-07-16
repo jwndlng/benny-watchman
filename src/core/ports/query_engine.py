@@ -1,4 +1,8 @@
-"""QueryEngine ABC — query-only interface for all data backends."""
+"""QueryEngine port — query-only interface for all data backends.
+
+Lives in core (not adapters) so both the engine adapters that implement it and
+the data sub-agents that consume it depend on the framework-owned contract.
+"""
 
 from abc import ABC, abstractmethod
 

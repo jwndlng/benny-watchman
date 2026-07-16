@@ -9,7 +9,7 @@ from src.capabilities.subagents.data.elastic_data_agent import (
     ElasticDataAgent,
     _index_prefix,
 )
-from src.adapters.engines.base import ColumnInfo, TableInfo
+from src.core.ports.query_engine import ColumnInfo, TableInfo
 
 
 # ---------------------------------------------------------------------------

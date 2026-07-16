@@ -6,7 +6,7 @@ import threading
 
 import logfire
 
-from src.adapters.engines.base import ColumnInfo, QueryEngine, TableInfo
+from src.core.ports.query_engine import ColumnInfo, QueryEngine, TableInfo
 
 
 class SQLiteEngine(QueryEngine):
