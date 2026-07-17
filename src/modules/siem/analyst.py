@@ -1,9 +1,8 @@
 """Autonomously investigates alerts using a data sufficiency loop.
 
-Bootstrapped by the SIEM module with a Runbook and pre-initialized DataAgents.
-Delegates data retrieval to DataAgents via dynamically registered query tools,
-one per source. Iterates until confident in a conclusion or the tool call limit
-is reached.
+Bootstrapped by the SIEM module with pre-initialized DataAgents. Delegates data
+retrieval to DataAgents via dynamically registered query tools, one per source.
+Iterates until confident in a conclusion or the tool call limit is reached.
 """
 
 from __future__ import annotations
@@ -12,20 +11,34 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+import logfire
 from pydantic import BaseModel, Field
 
 from src.capabilities.data.base_data_agent import BaseDataAgent
 from src.capabilities.data.query_tool import make_query_tool
 from src.capabilities.identity.user_profile import UserProfile
 from src.core.agents.base_agent import BaseAgent
-from src.core.orchestration.runbook_registry import Runbook
 from src.modules.siem.alert import Alert
 from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
+from src.schemas.guidance import TRUST_SEAM, format_guidance
 from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
 
 if TYPE_CHECKING:
     from src.capabilities.identity.assessment import IdentityCapability
+
+
+_SIEM_METHOD = """You are Benny, an autonomous SOC analyst investigating a security alert.
+
+Work the alert the way a real analyst does:
+1. Review the alert metadata — severity, source, affected entities, and timestamp.
+2. Read the description and any attached investigation guidance.
+3. Look up IPs, domains, hashes, and users to establish context.
+4. Query the relevant log data to build a timeline and assess whether the activity
+   is anomalous for this user or system.
+5. Reach a verdict with a confidence score.
+
+Be conservative — if the evidence is insufficient, return inconclusive rather than guessing."""
 
 
 class AnalystModel(BaseModel):
@@ -56,7 +69,7 @@ class AnalystModel(BaseModel):
 class AnalystAgent(BaseAgent[AnalystModel]):
     @property
     def instructions(self) -> str:
-        return self._runbook.instructions
+        return f"{_SIEM_METHOD}\n\n{TRUST_SEAM}"
 
     @property
     def constraints(self) -> list[str]:
@@ -69,13 +82,9 @@ class AnalystAgent(BaseAgent[AnalystModel]):
     def __init__(
         self,
         model: str,
-        runbook: Runbook,
         data_agents: list[BaseDataAgent],
         identity: IdentityCapability | None = None,
     ) -> None:
-        self._runbook = (
-            runbook  # must be set before super().__init__ calls self.instructions
-        )
         names = [a.name for a in data_agents]
         if len(names) != len(set(names)):
             duplicates = {n for n in names if names.count(n) > 1}
@@ -85,7 +94,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         super().__init__(
             model=model,
             output_type=AnalystModel,
-            name=f"AnalystAgent({runbook.name})",
+            name="AnalystAgent(siem)",
         )
         for agent in data_agents:
             self.agent.tool_plain(make_query_tool(agent))
@@ -101,10 +110,22 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         return None
 
     def investigate(self, alert: Alert) -> Investigation:
+        guidance = alert.guidance
+        logfire.info(
+            "triage guidance",
+            item_id=alert.id,
+            module="siem",
+            present=guidance is not None,
+            source=guidance.source if guidance else None,
+            length=len(guidance.text) if guidance else 0,
+        )
         result = self.run_sync(
-            f"Investigate the following alert:\n{alert.model_dump_json()}"
+            f"Investigate the following alert:\n"
+            f"{alert.model_dump_json(exclude={'guidance'})}"
+            f"{format_guidance(guidance)}"
         )
         m = result.output
+        guidance_source = guidance.source if guidance else None
         report = IncidentReport(
             alert_id=alert.id,
             severity=m.severity,
@@ -118,7 +139,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
             findings=m.findings,
             recommended_actions=m.recommended_actions,
             detection_rule_improvements=m.detection_rule_improvements,
-            runbook=self._runbook.name,
+            guidance_source=guidance_source,
             investigation_truncated=m.investigation_truncated,
         )
         now = datetime.now(timezone.utc)
@@ -128,7 +149,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
             status=InvestigationStatus.COMPLETE,
             severity=report.severity,
             verdict=report.verdict,
-            runbook=self._runbook.name,
+            guidance_source=guidance_source,
             outcome=Outcome(disposition=m.verdict, priority=m.severity),
             created_at=now,
             completed_at=now,

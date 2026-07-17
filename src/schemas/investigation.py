@@ -42,8 +42,9 @@ class Investigation(BaseModel):
     verdict: str | None = Field(
         default=None, description="Investigation verdict, set on completion"
     )
-    runbook: str | None = Field(
-        default=None, description="Runbook used for this investigation"
+    guidance_source: str | None = Field(
+        default=None,
+        description="Provenance of the guidance applied (e.g. 'elastic-rule-note'), or None",
     )
     outcome: Outcome | None = Field(
         default=None, description="Generic cross-domain summary, set on completion"

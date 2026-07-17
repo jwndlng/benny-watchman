@@ -14,15 +14,15 @@ from src.capabilities.data.base_data_agent import BaseDataAgent
 from src.platforms.loop import run_once
 
 if TYPE_CHECKING:
+    from src.core.orchestration.module_registry import ModuleRegistry
     from src.core.orchestration.orchestrator import OrchestratorAgent
-    from src.core.orchestration.runbook_registry import RunbookRegistry
     from src.platforms.base import TriagePlatform
 
 
 def register_tools(
     mcp: FastMCP,
     data_agents: list[BaseDataAgent],
-    registry: RunbookRegistry,
+    module_registry: ModuleRegistry,
     orchestrator: OrchestratorAgent,
     platform: TriagePlatform,
 ) -> None:
@@ -33,14 +33,17 @@ def register_tools(
     """
 
     @mcp.tool()
-    async def list_runbooks() -> str:
-        """List all available runbook names and descriptions.
+    async def list_modules() -> str:
+        """List the analyst modules Benny can investigate with.
 
-        Returns a JSON array of objects with 'name' and 'description' fields.
-        Use this to discover what alert types Benny can investigate.
+        Returns a JSON array of objects with 'name' and 'input_type' fields.
+        Use this to discover what Benny can investigate.
         """
         return json.dumps(
-            [{"name": rb.name, "description": rb.description} for rb in registry.list()]
+            [
+                {"name": m.name, "input_type": m.input_type.__name__}
+                for m in module_registry.list()
+            ]
         )
 
     @mcp.tool()
@@ -103,7 +106,7 @@ def register_tools(
             {
                 "triaged": 1,
                 "alert_id": inv.alert_id,
-                "runbook": inv.runbook,
+                "guidance_source": inv.guidance_source,
                 "disposition": inv.outcome.disposition if inv.outcome else None,
                 "priority": inv.outcome.priority if inv.outcome else None,
                 "summary": (inv.report or {}).get("summary", ""),

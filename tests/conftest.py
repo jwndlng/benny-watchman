@@ -1,17 +1,25 @@
-import uuid
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+import os
 
-import pytest
-from fastapi.testclient import TestClient
+# Tests must be hermetic: a developer's local config.toml (with secret-requiring
+# sections) must not leak into the module-level Settings() built at import time.
+# Pin CONFIG_FILE to a nonexistent path so config loads defaults; tests that need
+# TOML behavior set CONFIG_FILE explicitly (see test_config.py).
+os.environ.setdefault("CONFIG_FILE", "tests/.nonexistent-config.toml")
 
-from src.api.app import create_app
-from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
-from src.schemas.investigation import Investigation, InvestigationStatus
-from tests.harness.seeder.synthetic_db import SyntheticDataset
+import uuid  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
+from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+from src.api.app import create_app  # noqa: E402
+from src.modules.siem.incident_report import IncidentReport, Severity, Verdict  # noqa: E402
+from src.schemas.investigation import Investigation, InvestigationStatus  # noqa: E402
+from tests.harness.seeder.synthetic_db import SyntheticDataset  # noqa: E402
 
 
-def _stub_investigation(alert_id: str, runbook_name: str) -> Investigation:
+def _stub_investigation(alert_id: str, guidance_source: str | None = None) -> Investigation:
     report = IncidentReport(
         alert_id=alert_id,
         severity=Severity.MEDIUM,
@@ -25,7 +33,7 @@ def _stub_investigation(alert_id: str, runbook_name: str) -> Investigation:
         findings=[],
         recommended_actions=[],
         detection_rule_improvements=[],
-        runbook=runbook_name,
+        guidance_source=guidance_source,
     )
     now = datetime.now(timezone.utc)
     return Investigation(
@@ -34,7 +42,7 @@ def _stub_investigation(alert_id: str, runbook_name: str) -> Investigation:
         status=InvestigationStatus.COMPLETE,
         severity=report.severity,
         verdict=report.verdict,
-        runbook=runbook_name,
+        guidance_source=guidance_source,
         created_at=now,
         completed_at=now,
         report=report.model_dump(mode="json"),
@@ -54,28 +62,26 @@ def client(tmp_path):
         engine = "sqlite"
         db_path = str(tmp_path / "test.db")
 
-    class _Runbooks:
-        path = "src/modules/siem/runbooks"
-
     class _Agent:
         model = "test:stub"
 
-    class _Data:
-        db_path = str(tmp_path / "data.db")
+    class _Sqlite:
         name = "security_logs"
+        db_path = str(tmp_path / "data.db")
+
+    class _Data:
+        sqlite = _Sqlite()
+        elastic = None
 
     class _Vuln:
         db_path = str(tmp_path / "vuln.db")
-        runbooks_path = "src/modules/vuln_mgmt/runbooks"
         name = "asset_inventory"
 
     class _Config:
         persistence = _Persistence()
-        runbooks = _Runbooks()
         agent = _Agent()
         data = _Data()
         vuln = _Vuln()
-        elastic = None
         kibana = None
         okta = None
         mcp_bearer_token = "test-mcp-token"
@@ -91,10 +97,10 @@ def client(tmp_path):
             patch("src.modules.vuln_mgmt.module.VulnAnalystAgent") as vuln_cls,
         ):
             mock_cls.return_value.investigate.side_effect = lambda alert: (
-                _stub_investigation(alert.id, "generic")
+                _stub_investigation(alert.id)
             )
             vuln_cls.return_value.investigate.side_effect = lambda finding: (
-                _stub_investigation(finding.id, "generic")
+                _stub_investigation(finding.id)
             )
             with TestClient(app) as client:
                 yield client

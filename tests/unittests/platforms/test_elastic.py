@@ -10,8 +10,9 @@ from src.schemas.investigation import Investigation, InvestigationStatus
 
 
 class _Resp:
-    def __init__(self, payload: object) -> None:
+    def __init__(self, payload: object, status_code: int = 200) -> None:
         self._payload = payload
+        self.status_code = status_code
 
     def json(self) -> object:
         return self._payload
@@ -25,6 +26,8 @@ class _FakeKibana:
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, dict]] = []
+        self.patched_version: str | None = None
+        self.patch_status: int = 200
 
     def post(self, path: str, json: dict) -> _Resp:
         self.calls.append(("POST", path, json))
@@ -50,11 +53,17 @@ class _FakeKibana:
                 }
             )
         if path == "/api/cases":
-            return _Resp({"id": "case-1", "version": "v1"})
-        return _Resp({})  # comments, status, attach
+            return _Resp({"id": "case-1", "version": "v-create"})
+        if path.endswith("/comments"):
+            # a comment bumps the case version (real Kibana behavior)
+            return _Resp({"id": "case-1", "version": "v-comment"})
+        return _Resp({})  # status, attach
 
     def patch(self, path: str, json: dict) -> _Resp:
         self.calls.append(("PATCH", path, json))
+        self.patched_version = json["cases"][0].get("version")
+        if self.patch_status == 406:
+            return _Resp({"error": "no-op update"}, status_code=406)
         return _Resp([{"id": "case-1", "version": "v2"}])
 
     def get(self, path: str, params: dict | None = None) -> _Resp:
@@ -100,7 +109,7 @@ def test_fetch_open_filters_and_maps_to_alert():
     assert len(items) == 1
     item = items[0]
     assert item["id"] == "alert-1"
-    assert item["type"] == "brute-force"  # rule name drives runbook matching
+    assert item["type"] == "brute-force"  # rule name is metadata, not a match key
     assert item["source"] == "elastic"
 
 
@@ -111,6 +120,71 @@ def test_mapped_item_validates_as_alert():
     item = platform.fetch_open()[0]
     alert = Alert(**item)
     assert alert.type == "brute-force"
+
+
+def test_rule_note_becomes_guidance():
+    platform, _ = _platform()
+    hit = {
+        "_id": "a1",
+        "_index": ".alerts-security.alerts-default",
+        "_source": {
+            "@timestamp": "2026-03-13T10:00:00Z",
+            "kibana.alert.rule.name": "brute-force",
+            "kibana.alert.rule.uuid": "rule-1",
+            "kibana.alert.rule.parameters.note": "Check source IP reputation and recent auth history.",
+            "kibana.alert.rule.created_by": "detection-eng",
+        },
+    }
+    item = platform._to_alert(hit)
+    assert item["guidance"]["text"].startswith("Check source IP reputation")
+    assert item["guidance"]["source"] == "elastic-rule-note"
+    assert item["guidance"]["author"] == "detection-eng"
+
+
+def test_guidance_item_validates_as_alert():
+    from src.modules.siem.alert import Alert
+
+    platform, _ = _platform()
+    hit = {
+        "_id": "a1",
+        "_index": ".alerts",
+        "_source": {
+            "@timestamp": "2026-03-13T10:00:00Z",
+            "kibana.alert.rule.name": "brute-force",
+            "kibana.alert.rule.uuid": "rule-1",
+            "kibana.alert.rule.parameters.note": "Investigate lateral movement.",
+        },
+    }
+    alert = Alert(**platform._to_alert(hit))
+    assert alert.guidance is not None
+    assert alert.guidance.source == "elastic-rule-note"
+
+
+def test_no_rule_note_yields_no_guidance():
+    platform, _ = _platform()
+    item = platform.fetch_open()[0]  # canned hit carries no investigation note
+    assert item["guidance"] is None
+
+
+def test_rule_note_cached_per_rule():
+    platform, _ = _platform()
+    with_note = {
+        "_id": "a1",
+        "_index": ".alerts",
+        "_source": {
+            "kibana.alert.rule.uuid": "rule-1",
+            "kibana.alert.rule.parameters.note": "Investigate lateral movement.",
+        },
+    }
+    without_note = {  # same rule, note absent on this doc — must resolve from cache
+        "_id": "a2",
+        "_index": ".alerts",
+        "_source": {"kibana.alert.rule.uuid": "rule-1"},
+    }
+    first = platform._to_alert(with_note)
+    second = platform._to_alert(without_note)
+    assert first["guidance"]["text"] == "Investigate lateral movement."
+    assert second["guidance"]["text"] == "Investigate lateral movement."
 
 
 def test_set_status_maps_to_workflow_status():
@@ -143,6 +217,26 @@ def test_write_back_creates_case_comments_and_sets_case_severity():
     assert patch_body["cases"][0]["severity"] == "high"
 
 
+def test_set_severity_uses_version_refreshed_after_comment():
+    # regression: comment() bumps the case version; set_severity must PATCH with the
+    # refreshed version, not the stale create-time version (else Kibana 409s).
+    platform, fake = _platform()
+    platform.fetch_open()
+    platform.create_case("alert-1", _investigation())  # version "v-create"
+    platform.comment("alert-1", "benny note")  # bumps to "v-comment"
+    platform.set_severity("alert-1", "high")
+    assert fake.patched_version == "v-comment"
+
+
+def test_set_severity_tolerates_noop_406():
+    # a no-op severity PATCH (target == current) returns 406 in Kibana; benign.
+    platform, fake = _platform()
+    platform.fetch_open()
+    platform.create_case("alert-1", _investigation())
+    fake.patch_status = 406
+    platform.set_severity("alert-1", "low")  # must not raise
+
+
 def test_health_check_probes_alerts_and_cases_read_only():
     platform, fake = _platform()
     status = platform.health_check()
@@ -161,6 +255,21 @@ def test_comment_without_case_raises():
     platform, _ = _platform()
     with pytest.raises(ValueError):
         platform.comment("alert-1", "no case yet")
+
+
+def test_kibana_space_prefix_is_preserved_in_request_paths():
+    # a /s/<space-id> prefix in the Kibana url must scope all API calls
+    platform = ElasticSecurityPlatform("https://host/s/isec", "key")
+    req = platform._client.build_request(
+        "POST", "/api/detection_engine/signals/search"
+    )
+    assert str(req.url) == "https://host/s/isec/api/detection_engine/signals/search"
+
+
+def test_no_space_prefix_uses_default_space():
+    platform = ElasticSecurityPlatform("https://host", "key")
+    req = platform._client.build_request("POST", "/api/cases")
+    assert str(req.url) == "https://host/api/cases"
 
 
 def test_platform_selection_by_config():

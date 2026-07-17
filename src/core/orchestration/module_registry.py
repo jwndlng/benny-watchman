@@ -1,7 +1,7 @@
 """Registry of analyst modules the orchestrator routes over.
 
-Distinct from `RunbookRegistry`: this operates at the module (domain) level,
-whereas runbook selection is a within-module concern.
+Operates at the module (domain) level: it registers analyst modules by name and
+resolves one for an incoming payload.
 """
 
 from __future__ import annotations

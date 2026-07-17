@@ -16,7 +16,7 @@ def test_investigate_returns_investigation(client):
     data = response.json()
     assert data["alert_id"] == "alert-001"
     assert data["status"] == "complete"
-    assert data["runbook"] == "generic"
+    assert data["guidance_source"] is None
     assert "id" in data
     assert "report" in data
 
@@ -136,24 +136,19 @@ def test_get_report_not_found(client):
     assert response.status_code == 404
 
 
-# GET /runbooks
-def test_list_runbooks(client):
-    response = client.get("/runbooks")
+# GET /modules
+def test_list_modules(client):
+    response = client.get("/modules")
     assert response.status_code == 200
     data = response.json()
-    assert len(data) >= 1
-    assert any(r["name"] == "generic" for r in data)
+    names = {m["name"] for m in data}
+    assert "siem" in names
+    assert "vuln_mgmt" in names
+    assert all("input_type" in m for m in data)
 
 
-def test_get_runbook_by_name(client):
-    response = client.get("/runbooks/generic")
-    assert response.status_code == 200
-    assert response.json()["name"] == "generic"
-
-
-def test_get_runbook_not_found(client):
-    response = client.get("/runbooks/nonexistent")
-    assert response.status_code == 404
+def test_runbooks_route_is_gone(client):
+    assert client.get("/runbooks").status_code == 404
 
 
 # POST /triage/run

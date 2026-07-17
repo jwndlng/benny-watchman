@@ -9,26 +9,22 @@ from src.modules.siem.analyst import AnalystAgent
 
 if TYPE_CHECKING:
     from src.core.orchestration.capabilities import Capabilities
-    from src.core.orchestration.runbook_registry import RunbookRegistry
     from src.schemas.investigation import Investigation
 
 
 class SIEMModule:
-    """Investigates SIEM alerts using runbook-scoped AnalystAgents.
+    """Investigates SIEM alerts with a general-method AnalystAgent.
 
-    Runbook selection is internal to this module; the orchestrator only sees the
-    `AnalystModule` contract. Capabilities (data sources, identity) are injected
-    per investigation and forwarded to the AnalystAgent.
+    The orchestrator only sees the `AnalystModule` contract. Capabilities (data
+    sources, identity) are injected per investigation and forwarded to the
+    AnalystAgent; per-alert direction rides on the alert's `guidance` field.
     """
 
     name = "siem"
     input_type = Alert
 
-    def __init__(
-        self, model: str, runbooks: RunbookRegistry, data_sources: list[str]
-    ) -> None:
+    def __init__(self, model: str, data_sources: list[str]) -> None:
         self._model = model
-        self._runbooks = runbooks
         self._data_sources = data_sources
 
     def accepts(self, raw: dict) -> bool:
@@ -44,12 +40,10 @@ class SIEMModule:
         return alert.id
 
     def investigate(self, alert: Alert, caps: Capabilities) -> Investigation:
-        """Match a runbook by alert type and run a scoped AnalystAgent."""
-        runbook = self._runbooks.match(alert.type)
+        """Run the SIEM AnalystAgent over the injected capabilities."""
         data_agents = [caps.data[n] for n in self._data_sources if n in caps.data]
         analyst = AnalystAgent(
             model=self._model,
-            runbook=runbook,
             data_agents=data_agents,
             identity=caps.identity,
         )

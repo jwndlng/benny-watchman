@@ -15,7 +15,6 @@ from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
 from src.core.orchestration.capabilities import Capabilities
 from src.core.orchestration.module_registry import ModuleRegistry
 from src.core.orchestration.orchestrator import OrchestratorAgent
-from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.models import ModelFactory
 from src.modules.siem.alert import Alert, Severity
 from src.modules.siem.incident_report import IncidentReport
@@ -38,9 +37,6 @@ def orchestrator(tmp_path):
     inv_db = str(tmp_path / "investigations.db")
     persistence = ModelFactory.investigations(db_path=inv_db)
 
-    runbooks = RunbookRegistry()
-    runbooks.load("src/modules/siem/runbooks")
-
     model = os.environ.get("AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview")
 
     data_agent = SQLiteDataAgent(name="security_logs", model=model, db_path=data_db)
@@ -48,7 +44,7 @@ def orchestrator(tmp_path):
     capabilities = Capabilities(data={data_agent.name: data_agent})
 
     registry = ModuleRegistry()
-    registry.register(SIEMModule(model=model, runbooks=runbooks))
+    registry.register(SIEMModule(model=model, data_sources=[data_agent.name]))
 
     return OrchestratorAgent(registry, persistence, capabilities)
 
@@ -76,7 +72,7 @@ def test_brute_force_investigation(orchestrator):
 
     report: IncidentReport = investigation.report
     assert report.alert_id == "e2e-test-001"
-    assert report.runbook == "brute-force"
+    assert report.guidance_source is None  # no guidance attached to this alert
     assert 0.0 <= report.confidence <= 1.0
     assert len(report.findings) > 0
     assert len(report.summary) > 0
@@ -86,8 +82,8 @@ def test_brute_force_investigation(orchestrator):
 
 @pytest.mark.e2e
 @pytest.mark.skipif(not _HAS_API_KEY, reason="AGENT_MODEL_API_KEY not set")
-def test_generic_fallback_investigation(orchestrator):
-    """Unknown alert type falls back to the generic runbook."""
+def test_unknown_alert_type_still_triages(orchestrator):
+    """Any alert type triages via the general method — no per-type runbook needed."""
     alert = Alert(
         id="e2e-test-002",
         type="unknown-alert-type",
@@ -103,4 +99,4 @@ def test_generic_fallback_investigation(orchestrator):
     assert investigation is not None
     assert investigation.status == InvestigationStatus.COMPLETE
     assert investigation.report is not None
-    assert investigation.report.runbook == "generic"
+    assert investigation.report.guidance_source is None

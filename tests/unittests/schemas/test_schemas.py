@@ -54,9 +54,10 @@ def test_incident_report_valid():
         findings=["50 failed logins from 1.2.3.4"],
         recommended_actions=["Block IP 1.2.3.4"],
         detection_rule_improvements=[],
-        runbook="brute-force",
+        guidance_source="submitter",
     )
     assert report.investigation_truncated is False
+    assert report.guidance_source == "submitter"
 
 
 def test_incident_report_invalid_severity():
@@ -70,5 +71,4 @@ def test_incident_report_invalid_severity():
             findings=[],
             recommended_actions=[],
             detection_rule_improvements=[],
-            runbook="",
         )

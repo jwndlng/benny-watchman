@@ -17,6 +17,7 @@ dependencies = [
     "logfire[pydantic-ai,fastapi]>=4.28.0",
     "okta>=2.9.7",
     "pydantic-ai[all]>=0.8.1",
+    "pydantic-settings>=2.13",
     "uvicorn>=0.41.0",
     "structlog>=26.1.0",
 ]

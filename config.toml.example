@@ -1,0 +1,46 @@
+# =============================================================================
+# benny-watchman configuration — copy this file to config.toml and edit.
+#
+# config.toml holds all NON-SECRET settings. Secrets (API keys, tokens, private
+# keys) are supplied via environment variables only — see .env.example.
+# Precedence: env > config.toml > built-in defaults.
+# =============================================================================
+
+[agent]
+# Model id, format <provider>:<model-id> (anthropic | google-gla | openai).
+model = "google-gla:gemini-2.0-flash"
+max_requests = 15        # hard per-agent tool-call cap
+max_data_requests = 10   # per data-agent tool-call cap
+
+[persistence]
+engine = "sqlite"
+db_path = "investigations.db"
+
+# --- Log data sources: a source runs if and only if its section is present ---
+
+[data.sqlite]
+name = "security_logs"
+db_path = "data.db"
+
+# [data.elastic]
+# name = "elasticsearch"
+# host = "https://my-cluster.es.io:9200"
+# index_pattern = "logs-*"          # optional; filters exposed indices
+# ELASTIC_API_KEY is supplied via the environment.
+
+[vuln]
+db_path = "vuln.db"
+name = "asset_inventory"
+
+# --- Triage platform: [kibana] present ⇒ Elastic Security; absent ⇒ in-memory ---
+
+# [kibana]
+# url = "https://my-kibana.kb.io/s/<space-id>"   # include /s/<space> to target a Kibana space
+# case_owner = "securitySolution"
+# KIBANA_TRIAGE_API_KEY is supplied via the environment.
+
+# --- Okta IDP (optional): [okta] present ⇒ identity lookups enabled ---
+
+# [okta]
+# domain = "https://company.okta.com"
+# OKTA_CLIENT_ID and OKTA_PRIVATE_KEY are supplied via the environment.
