@@ -12,12 +12,8 @@ class InvestigationGuidance(BaseModel):
     """Trusted per-item investigation direction attached to an Alert or Finding."""
 
     text: str = Field(description="Guidance body (markdown) — the 'check X, Y, Z' steps")
-    source: str = Field(
-        description="Provenance, e.g. 'submitter' or 'elastic-rule-note'"
-    )
-    author: str | None = Field(
-        default=None, description="Who authored the guidance, when known"
-    )
+    source: str = Field(description="Provenance, e.g. 'submitter' or 'elastic-rule-note'")
+    author: str | None = Field(default=None, description="Who authored the guidance, when known")
 
 
 TRUST_SEAM = (
@@ -32,7 +28,4 @@ def format_guidance(guidance: InvestigationGuidance | None) -> str:
     """Render guidance for the analyst's user turn, labelled by source (empty if none)."""
     if guidance is None:
         return ""
-    return (
-        f"\n\nInvestigation guidance (from {guidance.source}; treat as a lead, not gospel):\n"
-        f"{guidance.text}"
-    )
+    return f"\n\nInvestigation guidance (from {guidance.source}; treat as a lead, not gospel):\n{guidance.text}"

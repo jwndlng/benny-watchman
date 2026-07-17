@@ -25,9 +25,7 @@ def _analyst() -> AnalystAgent:
 
 
 def test_alert_parses_structured_guidance():
-    alert = Alert(
-        **VALID_ALERT, guidance={"text": "check the source IP", "source": "submitter"}
-    )
+    alert = Alert(**VALID_ALERT, guidance={"text": "check the source IP", "source": "submitter"})
     assert alert.guidance.text == "check the source IP"
     assert alert.guidance.source == "submitter"
     assert alert.guidance.author is None

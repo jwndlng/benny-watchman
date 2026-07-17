@@ -10,6 +10,4 @@ router = APIRouter()
 def list_modules(request: Request) -> JSONResponse:
     """Return the registered analyst modules and the input types they accept."""
     modules = request.app.state.module_registry.list()
-    return JSONResponse(
-        [{"name": m.name, "input_type": m.input_type.__name__} for m in modules]
-    )
+    return JSONResponse([{"name": m.name, "input_type": m.input_type.__name__} for m in modules])

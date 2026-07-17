@@ -162,9 +162,7 @@ class ElasticSecurityPlatform:
         )
         # 406 = Kibana rejects a no-op update (severity already at target) — benign.
         if resp.status_code == 406:
-            logfire.info(
-                "elastic: case severity already at target, skipping", item_id=item_id
-            )
+            logfire.info("elastic: case severity already at target, skipping", item_id=item_id)
             return
         resp.raise_for_status()
         updated = resp.json()

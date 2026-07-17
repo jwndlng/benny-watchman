@@ -32,17 +32,13 @@ _PROVIDER_ENV = {
 class AgentSettings(BaseModel):
     """LLM agent settings."""
 
-    model: str = Field(
-        default="google-gla:gemini-3.1-flash-lite-preview", description="LLM model id"
-    )
+    model: str = Field(default="google-gla:gemini-3.1-flash-lite-preview", description="LLM model id")
     api_key: str | None = Field(
         default=None,
         description="Model API key (secret; injected from AGENT_MODEL_API_KEY)",
     )
     max_requests: int = Field(default=15, description="Hard per-agent request cap")
-    max_data_requests: int = Field(
-        default=10, description="Per data-agent request cap"
-    )
+    max_data_requests: int = Field(default=10, description="Per data-agent request cap")
 
 
 class PersistenceSettings(BaseModel):
@@ -65,9 +61,7 @@ class ElasticDataSettings(BaseModel):
     name: str = Field(default="elasticsearch", description="Data agent name")
     host: str = Field(description="Elasticsearch host URL")
     index_pattern: str | None = Field(default=None, description="Index pattern")
-    api_key: str = Field(
-        description="ES API key (secret; injected from ELASTIC_API_KEY)"
-    )
+    api_key: str = Field(description="ES API key (secret; injected from ELASTIC_API_KEY)")
 
 
 class DataSettings(BaseModel):
@@ -89,21 +83,15 @@ class KibanaSettings(BaseModel):
 
     url: str = Field(description="Kibana base URL; may include /s/<space-id>")
     case_owner: str = Field(default="securitySolution", description="Cases owner")
-    api_key: str = Field(
-        description="Kibana API key (secret; injected from KIBANA_TRIAGE_API_KEY)"
-    )
+    api_key: str = Field(description="Kibana API key (secret; injected from KIBANA_TRIAGE_API_KEY)")
 
 
 class OktaSettings(BaseModel):
     """Okta IDP integration (JWT private-key auth)."""
 
     domain: str = Field(description="Okta org URL")
-    client_id: str = Field(
-        description="OAuth client id (secret; injected from OKTA_CLIENT_ID)"
-    )
-    private_key_b64: str = Field(
-        description="Base64 private key (secret; injected from OKTA_PRIVATE_KEY)"
-    )
+    client_id: str = Field(description="OAuth client id (secret; injected from OKTA_CLIENT_ID)")
+    private_key_b64: str = Field(description="Base64 private key (secret; injected from OKTA_PRIVATE_KEY)")
 
 
 class Settings(BaseSettings):
@@ -121,9 +109,7 @@ class Settings(BaseSettings):
     vuln: VulnSettings = VulnSettings()
     kibana: KibanaSettings | None = None
     okta: OktaSettings | None = None
-    mcp_bearer_token: str | None = Field(
-        default=None, description="MCP bearer token (secret; from MCP_BEARER_TOKEN)"
-    )
+    mcp_bearer_token: str | None = Field(default=None, description="MCP bearer token (secret; from MCP_BEARER_TOKEN)")
 
     @model_validator(mode="before")
     @classmethod

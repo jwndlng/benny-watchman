@@ -39,9 +39,7 @@ def register_tools(
         Returns a JSON array of objects with 'name' and 'input_type' fields.
         Use this to discover what Benny can investigate.
         """
-        return json.dumps(
-            [{"name": m.name, "input_type": m.input_type.__name__} for m in module_registry.list()]
-        )
+        return json.dumps([{"name": m.name, "input_type": m.input_type.__name__} for m in module_registry.list()])
 
     @mcp.tool()
     async def lookup_data(query: str) -> str:

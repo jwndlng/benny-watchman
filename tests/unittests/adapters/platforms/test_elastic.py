@@ -254,9 +254,7 @@ def test_comment_without_case_raises():
 def test_kibana_space_prefix_is_preserved_in_request_paths():
     # a /s/<space-id> prefix in the Kibana url must scope all API calls
     platform = ElasticSecurityPlatform("https://host/s/isec", "key")
-    req = platform._client.build_request(
-        "POST", "/api/detection_engine/signals/search"
-    )
+    req = platform._client.build_request("POST", "/api/detection_engine/signals/search")
     assert str(req.url) == "https://host/s/isec/api/detection_engine/signals/search"
 
 

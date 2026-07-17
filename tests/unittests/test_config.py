@@ -134,8 +134,6 @@ def test_kibana_without_secret_fails_fast(tmp_path):
 def test_example_config_has_no_secrets():
     lines = Path("config.toml.example").read_text().splitlines()
     # only active (uncommented) lines matter — comments may name env-only secrets
-    active = "\n".join(
-        ln.strip() for ln in lines if ln.strip() and not ln.strip().startswith("#")
-    ).lower()
+    active = "\n".join(ln.strip() for ln in lines if ln.strip() and not ln.strip().startswith("#")).lower()
     for needle in ("api_key", "token", "private_key", "client_id"):
         assert needle not in active, f"secret {needle!r} assigned in example config"
