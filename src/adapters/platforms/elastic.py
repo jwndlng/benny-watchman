@@ -76,6 +76,7 @@ class ElasticSecurityPlatform:
         self._case: dict[str, tuple[str, str]] = {}  # item_id -> (case_id, version)
         self._index: dict[str, str] = {}  # item_id -> alert source index
         self._rule: dict[str, dict] = {}  # item_id -> {"id","name"}
+        self._rule_note: dict[str, str | None] = {}  # rule uuid -> investigation note
 
     # --- intake / tracking ---
 
@@ -133,12 +134,17 @@ class ElasticSecurityPlatform:
         return case_id
 
     def comment(self, item_id: str, text: str) -> None:
-        case_id, _ = self._require_case(item_id)
+        case_id, version = self._require_case(item_id)
         resp = self._client.post(
             f"{_CASES}/{case_id}/comments",
             json={"type": "user", "comment": text, "owner": self._owner},
         )
         resp.raise_for_status()
+        # Adding a comment bumps the case version; refresh it so a subsequent
+        # PATCH (set_severity) doesn't 409 on a stale version.
+        updated = resp.json()
+        new_version = updated.get("version") if isinstance(updated, dict) else None
+        self._case[item_id] = (case_id, new_version or version)
 
     def set_severity(self, item_id: str, severity: str) -> None:
         case_id, version = self._require_case(item_id)
@@ -154,6 +160,10 @@ class ElasticSecurityPlatform:
                 ]
             },
         )
+        # 406 = Kibana rejects a no-op update (severity already at target) — benign.
+        if resp.status_code == 406:
+            logfire.info("elastic: case severity already at target, skipping", item_id=item_id)
+            return
         resp.raise_for_status()
         updated = resp.json()
         if isinstance(updated, list) and updated:
@@ -221,13 +231,11 @@ class ElasticSecurityPlatform:
     def _to_alert(self, hit: dict) -> dict:
         src = hit.get("_source", {})
         rule_name = _dig(src, "kibana.alert.rule.name")
+        rule_uuid = _dig(src, "kibana.alert.rule.uuid")
         # remember for write-back
         item_id = hit.get("_id", "")
         self._index[item_id] = hit.get("_index", "")
-        self._rule[item_id] = {
-            "id": _dig(src, "kibana.alert.rule.uuid"),
-            "name": rule_name,
-        }
+        self._rule[item_id] = {"id": rule_uuid, "name": rule_name}
         return {
             "id": item_id,
             "type": rule_name or "unknown",
@@ -237,4 +245,27 @@ class ElasticSecurityPlatform:
             "source": "elastic",
             "timestamp": src.get("@timestamp"),
             "raw": src,
+            "guidance": self._guidance(src, rule_uuid),
+        }
+
+    def _guidance(self, src: dict, rule_uuid: str | None) -> dict | None:
+        """Build investigation guidance from the detection rule's note.
+
+        Reads the note from the alert document's rule parameters and caches it per
+        rule uuid so cost is per-unique-rule, not per-alert. Returns None when the
+        rule has no note. (The live rule-API fallback is deferred — see the change's
+        open question on the exact note field path.)
+        """
+        if rule_uuid is not None and rule_uuid in self._rule_note:
+            note = self._rule_note[rule_uuid]
+        else:
+            note = _dig(src, "kibana.alert.rule.parameters.note")
+            if rule_uuid is not None:
+                self._rule_note[rule_uuid] = note
+        if not note:
+            return None
+        return {
+            "text": note,
+            "source": "elastic-rule-note",
+            "author": _dig(src, "kibana.alert.rule.created_by"),
         }

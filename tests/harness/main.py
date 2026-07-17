@@ -11,8 +11,7 @@ import sys
 
 import logfire
 
-from src.config import Config
-from src.core.orchestration.runbook_registry import RunbookRegistry
+from src.config import Settings
 from src.utils.observability import setup_observability
 from tests.harness.cases.base_case import BaseCase
 from tests.harness.cases.case_brute_force import BruteForceCase
@@ -28,7 +27,7 @@ _SKIP = "SKIP"
 
 
 class HarnessManager:
-    def run_all(self, model: str, registry: RunbookRegistry, filter_name: str | None = None) -> HarnessReport:
+    def run_all(self, model: str, filter_name: str | None = None) -> HarnessReport:
         cases = ALL_CASES
         if filter_name:
             cases = [c for c in cases if c.name == filter_name]
@@ -39,7 +38,7 @@ class HarnessManager:
         results: list[CaseResult] = []
         for case in cases:
             print(f"  Running {case.name} ...", end=" ", flush=True)
-            result = case.run(model=model, registry=registry)
+            result = case.run(model=model)
             status = _PASS if result.passed is True else (_FAIL if result.passed is False else _SKIP)
             print(status)
             results.append(result)
@@ -74,7 +73,7 @@ def _print_report(report: HarnessReport) -> None:
 
 if __name__ == "__main__":
     setup_observability()
-    cfg = Config()
+    cfg = Settings()
 
     parser = argparse.ArgumentParser(description="Run harness investigation cases")
     parser.add_argument(
@@ -89,15 +88,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    registry = RunbookRegistry()
-    registry.load(cfg.runbooks.path)
-
     print(f"Harness — model: {args.model}")
     print(f"Cases: {[c.name for c in ALL_CASES]}")
     print()
 
     manager = HarnessManager()
-    report = manager.run_all(model=args.model, registry=registry, filter_name=args.case)
+    report = manager.run_all(model=args.model, filter_name=args.case)
 
     _print_report(report)
 

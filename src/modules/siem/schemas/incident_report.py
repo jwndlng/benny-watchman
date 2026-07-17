@@ -31,5 +31,7 @@ class IncidentReport(BaseModel):
     findings: list[str] = Field(description="Key findings and evidence")
     recommended_actions: list[str] = Field(description="Recommended SOC actions")
     detection_rule_improvements: list[str] = Field(description="Suggested detection rule improvements")
-    runbook: str = Field(description="Runbook used for this investigation")
+    guidance_source: str | None = Field(
+        default=None, description="Provenance of the guidance applied (e.g. 'elastic-rule-note'), or None"
+    )
     investigation_truncated: bool = Field(default=False, description="True if the tool call limit was reached")

@@ -4,16 +4,11 @@ import pytest
 from pydantic_ai.models.test import TestModel
 
 from src.capabilities.subagents.data.sqlite_data_agent import SQLiteDataAgent
-from src.core.orchestration.runbook_registry import Runbook
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _make_runbook() -> Runbook:
-    return Runbook(name="generic", description="test", instructions="Investigate.")
 
 
 def _initialized_agent(db_path: str, name: str = "test_source") -> SQLiteDataAgent:
@@ -64,7 +59,6 @@ def test_single_data_agent_registers_query_tool(seeded_db):
 
     analyst = AnalystAgent(
         model=TestModel(),
-        runbook=_make_runbook(),
         data_agents=[_initialized_agent(seeded_db)],
     )
     assert "query_test_source" in analyst.agent._function_toolset.tools
@@ -79,7 +73,6 @@ def test_multiple_data_agents_register_separate_tools(seeded_db, tmp_path):
 
     analyst = AnalystAgent(
         model=TestModel(),
-        runbook=_make_runbook(),
         data_agents=[
             _initialized_agent(seeded_db, name="auth_siem"),
             agent_b,
@@ -101,7 +94,6 @@ def test_duplicate_data_agent_names_raise(seeded_db):
     with pytest.raises(ValueError, match="Duplicate DataAgent names"):
         AnalystAgent(
             model=TestModel(),
-            runbook=_make_runbook(),
             data_agents=[
                 _initialized_agent(seeded_db, name="same"),
                 _initialized_agent(seeded_db, name="same"),

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class InvestigateRequest(BaseModel):
     id: str = Field(description="Unique alert identifier")
-    type: str = Field(description="Alert type — used to match a runbook")
+    type: str = Field(description="Alert type — metadata and dedup key")
     title: str = Field(description="Short human-readable alert title")
     description: str = Field(description="Full alert description with context for the analyst")
     severity: str = Field(description="Reported severity from the detection source")

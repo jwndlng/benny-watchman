@@ -9,17 +9,17 @@ Benny is an autonomous AI security analyst. He receives alerts via REST API, inv
 - **Language:** Python
 - **API:** FastAPI
 - **Data:** SQLite (dev/test) → ClickHouse via MCP stdio transport (production)
-- **LLM:** Model-agnostic (Anthropic, Google, OpenAI) — configurable at runtime via `AGENT_MODEL`
+- **LLM:** Model-agnostic (Anthropic, Google, OpenAI) — configurable via `[agent].model` in `config.toml` (env override `AGENT__MODEL`)
 - **Observability:** Logfire (PydanticAI instrumentation + custom spans)
 - **Container:** Docker
 - **Logging:** Structured JSON to stdout, collected by Vector daemonset
 
 ## Key Design Decisions
 - Agent is **investigation-only** — it never triggers remediation actions
-- Runbooks **scope the investigation** — one runbook per alert type, generic fallback for unmatched
+- Investigation guidance **travels with the work item** — a stable, Benny-owned analyst *method* governs; per-item guidance (submitted in the payload, or pulled from the source, e.g. an Elastic rule's investigation note) is a *lead* the analyst verifies, while raw event data stays *evidence*
 - DB permissions enforced at **ClickHouse user level**, not query parsing
 - Web access restricted to a **repo-managed allowlist**
-- All repo changes (runbooks, context, allowlist) trigger a **new Docker build**
+- All repo changes (context, allowlist) trigger a **new Docker build**
 - Guardrails: `AGENT_MAX_REQUESTS` (hard cap per agent) + per-agent `constraints` (soft guidance)
 
 ## Agent Design Principles
@@ -99,15 +99,25 @@ Alternatively register it in any other LLM agent such as Antigravity CLI (`~/.ge
 **Token:** on first run, a token is printed to stdout if `MCP_BEARER_TOKEN` is not set. Copy it to `.env` as `MCP_BEARER_TOKEN=<token>` to make it stable across restarts.
 
 **Available tools:**
-- `list_runbooks` — discover what alert types Benny can investigate
+- `list_modules` — discover the analyst modules (and input types) Benny can investigate with
 - `lookup_data` — natural-language query against configured data sources
+
+## Configuration
+
+Configuration is TOML-canonical via `pydantic-settings` (`src/config.py`), with secrets in env. Precedence: **env > `config.toml` > defaults**.
+- **`config.toml`** holds all non-secret settings; copy `config.toml.example` → `config.toml` (git-ignored). If absent, settings fall back to env + defaults.
+- **Secrets are env-only** (never in TOML): `AGENT_MODEL_API_KEY`, `ELASTIC_API_KEY`, `KIBANA_TRIAGE_API_KEY`, `OKTA_CLIENT_ID`, `OKTA_PRIVATE_KEY`, `MCP_BEARER_TOKEN`, `LOGFIRE_TOKEN`. A section present in TOML but missing its required secret fails fast at startup.
+- **Override any non-secret setting** per-env with `SECTION__FIELD` (e.g. `AGENT__MODEL`, `KIBANA__URL`).
+- **Data sources are authoritative**: a log source runs iff its section is present — `[data.sqlite]` and/or `[data.elastic]`. There is no always-on default source.
+- **Triage platform**: `[kibana]` present ⇒ Elastic Security platform, else in-memory. The Kibana `url` may include a space prefix (`/s/<space-id>`) to target a non-default space.
+- Logging/observability stay env-driven (`LOG_LEVEL`, `LOG_FORMAT`, `LOGFIRE_TOKEN`); `TRIAGE_SEED_ALERTS` (dev) is env too.
 
 ## Project Structure
 
 Source is organized along two axes (see `openspec/changes/layered-package-structure`): a **horizontal/vertical seam** (where code is shared) and a **boundary-kind split** (sub-agent vs tool). Everything that touches the outside world lives in an `adapters/` ring; dependencies point inward.
 - `src/core/` — domain-agnostic framework and orchestration (`core/agents/base_agent.py` + the generic `core/agents/as_tool.py` sub-agent→tool bridge, `core/orchestration/`, and `core/ports/` for the interfaces core owns — `query_engine` and `persistence`). Imports only `schemas/`; never `modules/` or `adapters/` (the orchestrator type-hints `core.ports.persistence.InvestigationStore`, which `adapters.persistence` satisfies structurally).
 - `src/capabilities/` — cross-cutting **horizontals** shared by all domains, split by boundary kind: `subagents/` (LLM loops — `data/` DataAgents) and `tools/` (deterministic composites — `identity/` Okta). Horizontal-only: a tool used by a single module belongs to that module, not here.
-- `src/modules/` — **self-contained** per-domain verticals; each owns its analyst, `module.py` (`AnalystModule` contract), domain models under `schemas/`, module-local tools under `tools/`, and `runbooks/`. `modules/siem/` (SIEM analyst, `schemas/{alert,incident_report}`) and `modules/vuln_mgmt/` (VM analyst, `schemas/{finding,report}`, `tools/intel`). Each selects its data source(s) from `Capabilities` by name.
+- `src/modules/` — **self-contained** per-domain verticals; each owns its analyst, `module.py` (`AnalystModule` contract), domain models under `schemas/`, and module-local tools under `tools/`. `modules/siem/` (SIEM analyst, `schemas/{alert,incident_report}`) and `modules/vuln_mgmt/` (VM analyst, `schemas/{finding,report}`, `tools/intel`). Each owns a stable analyst *method* (persona) in code and selects its data source(s) from `Capabilities` by name; per-item guidance rides on the input's `guidance` field.
 - `src/adapters/` — the outer I/O ring; touches the outside world, depends inward on `core`/`capabilities`/`modules`:
   - `adapters/api/` — FastAPI app (composition root `api/app.py`) + routes
   - `adapters/mcp/server/` (Benny AS an MCP server: FastMCP assembly, tools, auth) and `adapters/mcp/clients/` (Benny AS a client of external MCP servers, e.g. ClickHouse)
@@ -119,14 +129,14 @@ Source is organized along two axes (see `openspec/changes/layered-package-struct
 ### Orchestration & the module contract
 - A triage domain is an `AnalystModule` (`src/core/orchestration/module.py`): a Protocol with `name`, `input_type`, `accepts(raw)`, and `investigate(inp, caps)`. Adding a domain means adding a module — not modifying core.
 - `OrchestratorAgent` (`src/core/orchestration/orchestrator.py`) exposes `handle(raw, hint=None)`: an explicit `hint` dispatches directly (no LLM); otherwise it resolves a module via `accepts()`. Routes to one module today; the return type leaves room for cross-module synthesis.
-- `ModuleRegistry` holds modules (domain-level); `RunbookRegistry` selects playbooks *within* a module — two registries at two levels.
+- `ModuleRegistry` holds modules (domain-level); each module owns its analyst method in code and applies per-item `guidance` as a lead — there is no runbook registry.
 - `Capabilities` (`src/core/orchestration/capabilities.py`) is a typed container of shared instances (data agents, identity), built once at the composition root (`adapters/api/app.py`) and injected into `investigate()`. `SIEMModule` (`src/modules/siem/module.py`) is the first module.
 - The **triage-loop** (`src/adapters/platforms/loop.py`, `run_once`) closes the loop: fetch open items from a `TriagePlatform` → `handle()` → write back (case-always; auto-close benign, escalate real). It lives in `adapters/platforms/`, driven by the generic `outcome`, so `core/` stays unaware of it. Trigger: `POST /triage/run`.
 
 ## Key Files
-- `src/modules/siem/runbooks/` — SIEM runbook definitions (YAML frontmatter + Markdown)
+- `src/schemas/guidance.py` — `InvestigationGuidance` type + trust-seam preamble/formatting
 - `src/adapters/engines/` — Query engine abstractions (SQLite now, ClickHouse next)
 - `src/core/agents/base_agent.py` — BaseAgent framework
-- `src/modules/siem/analyst.py` — SIEM AnalystAgent; `src/capabilities/subagents/data/` — DataAgents
+- `src/modules/siem/analyst.py` — SIEM AnalystAgent (owns the SIEM method); `src/capabilities/subagents/data/` — DataAgents
 - `src/adapters/persistence.py` — Persistence models backed by Engine
-- `src/core/orchestration/runbook_registry.py` — Runbook loader and matcher
+- `src/adapters/platforms/elastic.py` — populates `Alert.guidance` from the detection rule's investigation note

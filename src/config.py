@@ -1,128 +1,186 @@
-"""Application configuration loaded from environment variables."""
+"""Application configuration — TOML-canonical via pydantic-settings, secrets from env.
+
+Precedence: env > TOML (`config.toml`) > defaults. All non-secret settings live in
+`config.toml` (copied from `config.toml.example`); secrets are supplied ONLY via
+environment variables under their canonical names (the `validation_alias` on each
+secret field). A data/integration section that is absent is disabled; a section that
+is present but missing its required secret fails validation at startup (fail fast).
+"""
+
+from __future__ import annotations
 
 import os
 
+from pydantic import BaseModel, Field, model_validator
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+    TomlConfigSettingsSource,
+)
 
-class _PersistenceConfig:
-    """Investigation storage settings."""
+_CONFIG_FILE = os.environ.get("CONFIG_FILE", "config.toml")
 
-    engine: str = os.environ.get("PERSISTENCE_ENGINE", "sqlite")
-    db_path: str = os.environ.get("PERSISTENCE_DB_PATH", "investigations.db")
-
-
-class _RunbooksConfig:
-    """Runbook loader settings."""
-
-    path: str = os.environ.get("RUNBOOKS_PATH", "src/modules/siem/runbooks")
+# Non-secret model defaults keep the model provider mapping working for local dev.
+_PROVIDER_ENV = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "google-gla": "GEMINI_API_KEY",
+    "openai": "OPENAI_API_KEY",
+}
 
 
-class _AgentConfig:
+class AgentSettings(BaseModel):
     """LLM agent settings."""
 
-    model: str = os.environ.get("AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview")
-    api_key: str | None = os.environ.get("AGENT_MODEL_API_KEY")
-    max_requests: int = int(os.environ.get("AGENT_MAX_REQUESTS", "15"))
-    max_data_requests: int = int(os.environ.get("AGENT_MAX_DATA_REQUESTS", "10"))
+    model: str = Field(default="google-gla:gemini-3.1-flash-lite-preview", description="LLM model id")
+    api_key: str | None = Field(
+        default=None,
+        description="Model API key (secret; injected from AGENT_MODEL_API_KEY)",
+    )
+    max_requests: int = Field(default=15, description="Hard per-agent request cap")
+    max_data_requests: int = Field(default=10, description="Per data-agent request cap")
+
+
+class PersistenceSettings(BaseModel):
+    """Investigation storage settings."""
+
+    engine: str = Field(default="sqlite", description="Persistence engine")
+    db_path: str = Field(default="investigations.db", description="Investigations DB")
+
+
+class SqliteDataSettings(BaseModel):
+    """SQLite log data source (present ⇒ enabled)."""
+
+    name: str = Field(default="security_logs", description="Data agent name")
+    db_path: str = Field(default="data.db", description="SQLite log DB path")
+
+
+class ElasticDataSettings(BaseModel):
+    """Elasticsearch log data source (present ⇒ enabled)."""
+
+    name: str = Field(default="elasticsearch", description="Data agent name")
+    host: str = Field(description="Elasticsearch host URL")
+    index_pattern: str | None = Field(default=None, description="Index pattern")
+    api_key: str = Field(description="ES API key (secret; injected from ELASTIC_API_KEY)")
+
+
+class DataSettings(BaseModel):
+    """Log data sources; a source runs iff its section is present."""
+
+    sqlite: SqliteDataSettings | None = None
+    elastic: ElasticDataSettings | None = None
+
+
+class VulnSettings(BaseModel):
+    """Vulnerability Management asset-inventory data source."""
+
+    db_path: str = Field(default="vuln.db", description="Asset inventory DB path")
+    name: str = Field(default="asset_inventory", description="Asset data agent name")
+
+
+class KibanaSettings(BaseModel):
+    """Kibana Security triage platform (present ⇒ Elastic platform, else in-memory)."""
+
+    url: str = Field(description="Kibana base URL; may include /s/<space-id>")
+    case_owner: str = Field(default="securitySolution", description="Cases owner")
+    api_key: str = Field(description="Kibana API key (secret; injected from KIBANA_TRIAGE_API_KEY)")
+
+
+class OktaSettings(BaseModel):
+    """Okta IDP integration (JWT private-key auth)."""
+
+    domain: str = Field(description="Okta org URL")
+    client_id: str = Field(description="OAuth client id (secret; injected from OKTA_CLIENT_ID)")
+    private_key_b64: str = Field(description="Base64 private key (secret; injected from OKTA_PRIVATE_KEY)")
+
+
+class Settings(BaseSettings):
+    """Top-level configuration: TOML + env (env wins), validated at construction."""
+
+    model_config = SettingsConfigDict(
+        toml_file=_CONFIG_FILE,
+        env_nested_delimiter="__",
+        extra="ignore",
+    )
+
+    agent: AgentSettings = AgentSettings()
+    persistence: PersistenceSettings = PersistenceSettings()
+    data: DataSettings = DataSettings()
+    vuln: VulnSettings = VulnSettings()
+    kibana: KibanaSettings | None = None
+    okta: OktaSettings | None = None
+    mcp_bearer_token: str | None = Field(default=None, description="MCP bearer token (secret; from MCP_BEARER_TOKEN)")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _inject_secrets(cls, data: object) -> object:
+        """Inject env-only secrets into their sections by canonical name.
+
+        Secrets never live in TOML. Optional sections receive their secret only when
+        the section is present, so a configured-but-secretless section fails fast.
+        """
+        if not isinstance(data, dict):
+            return data
+
+        def _env(name: str) -> str | None:
+            return os.environ.get(name) or None
+
+        agent_key = _env("AGENT_MODEL_API_KEY")
+        if agent_key is not None:
+            agent = data.get("agent")
+            if not isinstance(agent, dict):
+                agent = {}
+                data["agent"] = agent
+            agent["api_key"] = agent_key
+
+        sources = data.get("data")
+        if isinstance(sources, dict) and isinstance(sources.get("elastic"), dict):
+            v = _env("ELASTIC_API_KEY")
+            if v is not None:
+                sources["elastic"]["api_key"] = v
+
+        if isinstance(data.get("kibana"), dict):
+            v = _env("KIBANA_TRIAGE_API_KEY")
+            if v is not None:
+                data["kibana"]["api_key"] = v
+
+        if isinstance(data.get("okta"), dict):
+            cid, pk = _env("OKTA_CLIENT_ID"), _env("OKTA_PRIVATE_KEY")
+            if cid is not None:
+                data["okta"]["client_id"] = cid
+            if pk is not None:
+                data["okta"]["private_key_b64"] = pk
+
+        return data
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Precedence: init > env > dotenv > TOML > defaults."""
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            TomlConfigSettingsSource(settings_cls),
+            file_secret_settings,
+        )
 
     def set_model_api_key(self, model: str | None = None) -> None:
-        """PydanticAI delegates to vendor SDKs (Anthropic, Google, OpenAI) which each
-        read their own provider-specific env var. Map AGENT_MODEL_API_KEY to the right one.
-        Pass model explicitly when using a runtime override (e.g. harness --model flag)."""
-        target = model or self.model
-        if not self.api_key or ":" not in target:
+        """Map the agent API key to the provider-specific env var PydanticAI expects.
+        Pass model explicitly for a runtime override (e.g. harness --model)."""
+        target = model or self.agent.model
+        if not self.agent.api_key or ":" not in target:
             return
-        match target.split(":")[0]:
-            case "anthropic":
-                os.environ["ANTHROPIC_API_KEY"] = self.api_key
-            case "google-gla":
-                os.environ["GEMINI_API_KEY"] = self.api_key
-            case "openai":
-                os.environ["OPENAI_API_KEY"] = self.api_key
+        env_var = _PROVIDER_ENV.get(target.split(":")[0])
+        if env_var:
+            os.environ[env_var] = self.agent.api_key
 
 
-class _DataConfig:
-    """Security log backend settings."""
-
-    engine: str = os.environ.get("DATA_BACKEND_ENGINE", "sqlite")
-    db_path: str = os.environ.get("DATA_BACKEND_DB_PATH", "data.db")
-    name: str = os.environ.get("DATA_AGENT_NAME", "security_logs")
-
-
-class _VulnConfig:
-    """Vulnerability Management module settings."""
-
-    runbooks_path: str = os.environ.get("VULN_RUNBOOKS_PATH", "src/modules/vuln_mgmt/runbooks")
-    db_path: str = os.environ.get("VULN_DB_PATH", "vuln.db")
-    name: str = os.environ.get("VULN_DATA_AGENT_NAME", "asset_inventory")
-
-
-class _OktaConfig:
-    """Okta IDP integration settings — JWT private key authentication."""
-
-    def __init__(self, domain: str, client_id: str, private_key_b64: str) -> None:
-        self.domain = domain
-        self.client_id = client_id
-        self.private_key_b64 = private_key_b64
-
-
-class _ElasticConfig:
-    """Elasticsearch data backend settings."""
-
-    def __init__(self, host: str, api_key: str, index_pattern: str | None) -> None:
-        self.host = host
-        self.api_key = api_key
-        self.index_pattern = index_pattern
-
-
-def _load_elastic_config() -> "_ElasticConfig | None":
-    host = os.environ.get("ELASTIC_HOST", "")
-    api_key = os.environ.get("ELASTIC_API_KEY", "")
-    if not host or not api_key:
-        return None
-    index_pattern = os.environ.get("ELASTIC_INDEX_PATTERN") or None
-    return _ElasticConfig(host=host, api_key=api_key, index_pattern=index_pattern)
-
-
-class _KibanaConfig:
-    """Kibana Security app settings — the TriagePlatform (write-back) surface."""
-
-    def __init__(self, url: str, api_key: str, case_owner: str) -> None:
-        self.url = url
-        self.api_key = api_key
-        self.case_owner = case_owner
-
-
-def _load_kibana_config() -> "_KibanaConfig | None":
-    url = os.environ.get("KIBANA_URL", "")
-    api_key = os.environ.get("KIBANA_TRIAGE_API_KEY", "")
-    if not url or not api_key:
-        return None
-    case_owner = os.environ.get("KIBANA_CASE_OWNER", "securitySolution")
-    return _KibanaConfig(url=url, api_key=api_key, case_owner=case_owner)
-
-
-def _load_okta_config() -> "_OktaConfig | None":
-    domain = os.environ.get("OKTA_DOMAIN", "")
-    client_id = os.environ.get("OKTA_CLIENT_ID", "")
-    private_key_b64 = os.environ.get("OKTA_PRIVATE_KEY", "")
-    if not domain or not client_id or not private_key_b64:
-        return None
-    return _OktaConfig(domain=domain, client_id=client_id, private_key_b64=private_key_b64)
-
-
-class Config:
-    """Top-level application configuration assembled from environment variables."""
-
-    persistence = _PersistenceConfig()
-    runbooks = _RunbooksConfig()
-    agent = _AgentConfig()
-    data = _DataConfig()
-    vuln = _VulnConfig()
-    elastic: "_ElasticConfig | None" = _load_elastic_config()
-    kibana: "_KibanaConfig | None" = _load_kibana_config()
-    okta: "_OktaConfig | None" = _load_okta_config()
-    mcp_bearer_token: "str | None" = os.environ.get("MCP_BEARER_TOKEN") or None
-
-
-config = Config()
-config.agent.set_model_api_key()
+config = Settings()
+config.set_model_api_key()

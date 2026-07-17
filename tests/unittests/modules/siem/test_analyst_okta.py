@@ -7,20 +7,14 @@ import pytest
 from pydantic_ai.models.test import TestModel
 
 from src.modules.siem.analyst import AnalystAgent
-from src.core.orchestration.runbook_registry import Runbook
 from src.capabilities.tools.identity.assessment import IdentityTool
 from src.capabilities.tools.identity.user_profile import UserProfile
-
-
-def _make_runbook() -> Runbook:
-    return Runbook(name="generic", description="test", instructions="Investigate.")
 
 
 def _make_analyst(okta_client=None) -> AnalystAgent:
     identity = IdentityTool(okta_client) if okta_client is not None else None
     return AnalystAgent(
         model=TestModel(),
-        runbook=_make_runbook(),
         data_agents=[],
         identity=identity,
     )

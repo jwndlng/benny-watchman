@@ -9,16 +9,15 @@ from src.modules.vuln_mgmt.schemas.finding import Finding
 
 if TYPE_CHECKING:
     from src.core.orchestration.capabilities import Capabilities
-    from src.core.orchestration.runbook_registry import RunbookRegistry
     from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
     from src.schemas.investigation import Investigation
 
 
 class VulnModule:
-    """Triages vulnerability findings using runbook-scoped VulnAnalystAgents.
+    """Triages vulnerability findings with a general-method VulnAnalystAgent.
 
     Selects its data source(s) from `Capabilities.data` by name and owns its
-    vuln-intel tool; runbook selection is internal.
+    vuln-intel tool; per-finding direction rides on the finding's `guidance` field.
     """
 
     name = "vuln_mgmt"
@@ -27,12 +26,10 @@ class VulnModule:
     def __init__(
         self,
         model: str,
-        runbooks: RunbookRegistry,
         intel: VulnIntelTool,
         data_sources: list[str],
     ) -> None:
         self._model = model
-        self._runbooks = runbooks
         self._intel = intel
         self._data_sources = data_sources
 
@@ -49,11 +46,9 @@ class VulnModule:
         return f"{finding.cve}:{finding.asset}:{finding.cvss}"
 
     def investigate(self, finding: Finding, caps: Capabilities) -> Investigation:
-        runbook = self._runbooks.match(finding.type)
         data_agents = [caps.data[n] for n in self._data_sources if n in caps.data]
         analyst = VulnAnalystAgent(
             model=self._model,
-            runbook=runbook,
             data_agents=data_agents,
             intel=self._intel,
         )

@@ -13,8 +13,8 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
     from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
+    from src.core.orchestration.module_registry import ModuleRegistry
     from src.core.orchestration.orchestrator import OrchestratorAgent
-    from src.core.orchestration.runbook_registry import RunbookRegistry
     from src.adapters.platforms.base import TriagePlatform
 
 
@@ -37,12 +37,12 @@ class MCPServer:
     def register(
         self,
         data_agents: list[BaseDataAgent],
-        registry: RunbookRegistry,
+        module_registry: ModuleRegistry,
         orchestrator: OrchestratorAgent,
         platform: TriagePlatform,
     ) -> None:
         """Register Benny's MCP tools once dependencies are initialised."""
-        register_tools(self._mcp, data_agents, registry, orchestrator, platform)
+        register_tools(self._mcp, data_agents, module_registry, orchestrator, platform)
 
     def mount(self, app: FastAPI, token: str) -> None:
         """Mount the bearer-authenticated MCP ASGI app at /mcp."""

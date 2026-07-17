@@ -15,7 +15,6 @@ from src.capabilities.subagents.data.sqlite_data_agent import SQLiteDataAgent
 from src.core.orchestration.capabilities import Capabilities
 from src.core.orchestration.module_registry import ModuleRegistry
 from src.core.orchestration.orchestrator import OrchestratorAgent
-from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.adapters.persistence import ModelFactory
 from src.modules.vuln_mgmt.schemas.finding import Finding
 from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
@@ -33,8 +32,6 @@ def orchestrator(tmp_path):
     AssetDataset().load(asset_db)
 
     persistence = ModelFactory.investigations(db_path=str(tmp_path / "inv.db"))
-    runbooks = RunbookRegistry()
-    runbooks.load("src/modules/vuln_mgmt/runbooks")
 
     model = os.environ.get("AGENT_MODEL", "google-gla:gemini-3.1-flash-lite-preview")
 
@@ -46,7 +43,6 @@ def orchestrator(tmp_path):
     registry.register(
         VulnModule(
             model=model,
-            runbooks=runbooks,
             intel=VulnIntelTool(),
             data_sources=["asset_inventory"],
         )

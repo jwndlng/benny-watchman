@@ -1,8 +1,8 @@
 """Autonomously triages vulnerability findings using a data sufficiency loop.
 
-Bootstrapped by the VM module with a Runbook, pre-initialized DataAgents (asset
-inventory), and a vuln-intel tool. Iterates until confident in a triage verdict
-or the tool call limit is reached.
+Bootstrapped by the VM module with pre-initialized DataAgents (asset inventory)
+and a vuln-intel tool. Iterates until confident in a triage verdict or the tool
+call limit is reached.
 """
 
 from __future__ import annotations
@@ -10,17 +10,31 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
+import logfire
 from pydantic import BaseModel, Field
 
 from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
 from src.capabilities.subagents.data.query_tool import make_query_tool
 from src.core.agents.base_agent import BaseAgent
-from src.core.orchestration.runbook_registry import Runbook
 from src.modules.vuln_mgmt.schemas.finding import Finding
 from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
 from src.modules.vuln_mgmt.schemas.report import VulnTriageReport
+from src.schemas.guidance import TRUST_SEAM, format_guidance
 from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
+
+
+_VULN_METHOD = """You are Benny, an autonomous vulnerability-management analyst triaging a finding.
+
+Work the finding the way a real analyst does:
+1. Review the finding — CVE, affected asset, and CVSS base score.
+2. Read the description and any attached investigation guidance.
+3. Enrich the CVE with threat intelligence (EPSS, KEV) to gauge real-world exploitability.
+4. Query the asset inventory to establish exposure — internet-facing? what does it run? who owns it?
+5. Decide whether the vulnerability is exploitable in this environment, and assign a
+   remediation priority and SLA with supporting evidence.
+
+Be conservative — if exposure is unclear, prefer a higher priority and flag for manual review."""
 
 
 class VulnAnalystModel(BaseModel):
@@ -39,7 +53,7 @@ class VulnAnalystModel(BaseModel):
 class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
     @property
     def instructions(self) -> str:
-        return self._runbook.instructions
+        return f"{_VULN_METHOD}\n\n{TRUST_SEAM}"
 
     @property
     def constraints(self) -> list[str]:
@@ -52,11 +66,9 @@ class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
     def __init__(
         self,
         model: str,
-        runbook: Runbook,
         data_agents: list[BaseDataAgent],
         intel: VulnIntelTool,
     ) -> None:
-        self._runbook = runbook
         names = [a.name for a in data_agents]
         if len(names) != len(set(names)):
             duplicates = {n for n in names if names.count(n) > 1}
@@ -66,7 +78,7 @@ class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
         super().__init__(
             model=model,
             output_type=VulnAnalystModel,
-            name=f"VulnAnalystAgent({runbook.name})",
+            name="VulnAnalystAgent(vuln_mgmt)",
         )
         for agent in data_agents:
             self.agent.tool_plain(make_query_tool(agent))
@@ -79,7 +91,20 @@ class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
         return await self._intel.enrich(cve)
 
     def investigate(self, finding: Finding) -> Investigation:
-        result = self.run_sync(f"Triage the following vulnerability finding:\n{finding.model_dump_json()}")
+        guidance = finding.guidance
+        logfire.info(
+            "triage guidance",
+            item_id=finding.id,
+            module="vuln_mgmt",
+            present=guidance is not None,
+            source=guidance.source if guidance else None,
+            length=len(guidance.text) if guidance else 0,
+        )
+        result = self.run_sync(
+            f"Triage the following vulnerability finding:\n"
+            f"{finding.model_dump_json(exclude={'guidance'})}"
+            f"{format_guidance(guidance)}"
+        )
         m = result.output
         report = VulnTriageReport(
             finding_id=finding.id,
@@ -99,7 +124,7 @@ class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
             id=str(uuid.uuid4()),
             alert_id=finding.id,
             status=InvestigationStatus.COMPLETE,
-            runbook=self._runbook.name,
+            guidance_source=guidance.source if guidance else None,
             outcome=Outcome(
                 disposition="exploitable" if m.exploitable else "not_exploitable",
                 priority=m.priority,

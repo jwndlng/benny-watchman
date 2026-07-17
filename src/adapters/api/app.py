@@ -16,18 +16,18 @@ from src.adapters.api.routes.findings import router as findings_router
 from src.adapters.api.routes.hunt import router as hunt_router
 from src.adapters.api.routes.investigate import router as investigate_router
 from src.adapters.api.routes.investigations import router as investigations_router
+from src.adapters.api.routes.modules import router as modules_router
 from src.adapters.api.routes.reports import router as reports_router
-from src.adapters.api.routes.runbooks import router as runbooks_router
 from src.adapters.api.routes.triage import router as triage_router
+from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
 from src.capabilities.subagents.data.elastic_data_agent import ElasticDataAgent
 from src.capabilities.subagents.data.sqlite_data_agent import SQLiteDataAgent
 from src.capabilities.tools.identity.assessment import IdentityTool
 from src.capabilities.tools.identity.okta import OktaClient
-from src.config import Config, config
+from src.config import Settings, config
 from src.core.orchestration.capabilities import Capabilities
 from src.core.orchestration.module_registry import ModuleRegistry
 from src.core.orchestration.orchestrator import OrchestratorAgent
-from src.core.orchestration.runbook_registry import RunbookRegistry
 from src.adapters.mcp.server.app import MCPServer
 from src.adapters.persistence import ModelFactory
 from src.modules.siem.module import SIEMModule
@@ -52,7 +52,7 @@ def _load_seed_alerts() -> list[dict]:
     return json.loads(pathlib.Path(path).read_text())
 
 
-def _select_triage_platform(cfg: Config) -> TriagePlatform:
+def _select_triage_platform(cfg: Settings) -> TriagePlatform:
     """Elastic when Kibana is configured, else the in-memory reference platform."""
     if cfg.kibana is not None:
         return ElasticSecurityPlatform(
@@ -63,7 +63,7 @@ def _select_triage_platform(cfg: Config) -> TriagePlatform:
     return InMemoryTriagePlatform(items=_load_seed_alerts())
 
 
-def create_app(cfg: Config = config) -> FastAPI:
+def create_app(cfg: Settings = config) -> FastAPI:
     """Create and configure the FastAPI application."""
 
     mcp_token = cfg.mcp_bearer_token or secrets.token_urlsafe(32)
@@ -76,29 +76,30 @@ def create_app(cfg: Config = config) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """Initialise shared state on startup."""
         async with mcp_server.session():
-            registry = RunbookRegistry()
-            registry.load(cfg.runbooks.path)
+            # Log data sources are authoritative: a source runs iff its config
+            # section is present. No always-on default source.
+            log_agents: list[BaseDataAgent] = []
+            elastic_agent: ElasticDataAgent | None = None
 
-            data_agent = SQLiteDataAgent(
-                name=cfg.data.name,
-                model=cfg.agent.model,
-                db_path=cfg.data.db_path,
-            )
-            await data_agent.initialize()
-
-            elastic_agent = (
-                ElasticDataAgent(
-                    name="elasticsearch",
+            if cfg.data.sqlite is not None:
+                sqlite_agent = SQLiteDataAgent(
+                    name=cfg.data.sqlite.name,
                     model=cfg.agent.model,
-                    host=cfg.elastic.host,
-                    api_key=cfg.elastic.api_key,
-                    index_pattern=cfg.elastic.index_pattern,
+                    db_path=cfg.data.sqlite.db_path,
                 )
-                if cfg.elastic is not None
-                else None
-            )
-            if elastic_agent is not None:
+                await sqlite_agent.initialize()
+                log_agents.append(sqlite_agent)
+
+            if cfg.data.elastic is not None:
+                elastic_agent = ElasticDataAgent(
+                    name=cfg.data.elastic.name,
+                    model=cfg.agent.model,
+                    host=cfg.data.elastic.host,
+                    api_key=cfg.data.elastic.api_key,
+                    index_pattern=cfg.data.elastic.index_pattern,
+                )
                 await elastic_agent.initialize()
+                log_agents.append(elastic_agent)
 
             okta_client = (
                 OktaClient(
@@ -109,10 +110,6 @@ def create_app(cfg: Config = config) -> FastAPI:
                 if cfg.okta is not None
                 else None
             )
-
-            log_agents = [data_agent]
-            if elastic_agent is not None:
-                log_agents.append(elastic_agent)
 
             asset_agent = SQLiteDataAgent(
                 name=cfg.vuln.name,
@@ -130,21 +127,16 @@ def create_app(cfg: Config = config) -> FastAPI:
                 identity=IdentityTool(okta_client),
             )
 
-            vuln_runbooks = RunbookRegistry()
-            vuln_runbooks.load(cfg.vuln.runbooks_path)
-
             module_registry = ModuleRegistry()
             module_registry.register(
                 SIEMModule(
                     model=cfg.agent.model,
-                    runbooks=registry,
                     data_sources=[a.name for a in log_agents],
                 )
             )
             module_registry.register(
                 VulnModule(
                     model=cfg.agent.model,
-                    runbooks=vuln_runbooks,
                     intel=VulnIntelTool(),
                     data_sources=[cfg.vuln.name],
                 )
@@ -152,11 +144,11 @@ def create_app(cfg: Config = config) -> FastAPI:
 
             app.state.orchestrator = OrchestratorAgent(module_registry, persistence, capabilities)
             app.state.persistence = persistence
-            app.state.registry = registry
+            app.state.module_registry = module_registry
             app.state.triage_platform = _select_triage_platform(cfg)
             mcp_server.register(
                 all_agents,
-                registry,
+                module_registry,
                 app.state.orchestrator,
                 app.state.triage_platform,
             )
@@ -182,7 +174,7 @@ def create_app(cfg: Config = config) -> FastAPI:
     app.include_router(findings_router)
     app.include_router(investigations_router)
     app.include_router(reports_router)
-    app.include_router(runbooks_router)
+    app.include_router(modules_router)
     app.include_router(triage_router)
     app.include_router(hunt_router)
     mcp_server.mount(app, mcp_token)

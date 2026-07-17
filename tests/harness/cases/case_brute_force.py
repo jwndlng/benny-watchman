@@ -11,7 +11,6 @@ from tests.harness.seeder.synthetic_db import BRUTE_FORCE_ATTACKER_IP, Synthetic
 
 class BruteForceCase(BaseCase):
     name = "brute_force_ssh"
-    runbook_name = "generic"
     expected_verdict = Verdict.TRUE_POSITIVE
     severity_range = (Severity.HIGH, Severity.CRITICAL)
 

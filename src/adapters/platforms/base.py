@@ -26,14 +26,23 @@ class TriageStatus(str, Enum):
 
 @runtime_checkable
 class TriagePlatform(Protocol):
-    """Intake + tracking + write-back against an operational system."""
+    """Intake + tracking + write-back against an operational system.
+
+    Items produced by `fetch_open`/`get` carry any available investigation
+    guidance in a `guidance` field, populated eagerly by the platform at fetch
+    time — the analyst never pulls guidance itself (platforms → core only).
+    """
 
     def fetch_open(self, limit: int = 50) -> list[dict]:
-        """Return raw work items still needing triage (status OPEN). Each has an 'id'."""
+        """Return raw work items still needing triage (status OPEN).
+
+        Each item has an 'id' and carries a `guidance` field when the source
+        provides investigation guidance for it.
+        """
         ...
 
     def get(self, item_id: str) -> dict | None:
-        """Return the raw work item by id, or None."""
+        """Return the raw work item by id (with `guidance` when available), or None."""
         ...
 
     def comment(self, item_id: str, text: str) -> None:
