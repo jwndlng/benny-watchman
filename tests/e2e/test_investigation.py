@@ -11,13 +11,13 @@ import os
 
 import pytest
 
-from src.capabilities.data.sqlite_data_agent import SQLiteDataAgent
+from src.capabilities.subagents.data.sqlite_data_agent import SQLiteDataAgent
 from src.core.orchestration.capabilities import Capabilities
 from src.core.orchestration.module_registry import ModuleRegistry
 from src.core.orchestration.orchestrator import OrchestratorAgent
-from src.models import ModelFactory
-from src.modules.siem.alert import Alert, Severity
-from src.modules.siem.incident_report import IncidentReport
+from src.adapters.persistence import ModelFactory
+from src.modules.siem.schemas.alert import Alert, Severity
+from src.modules.siem.schemas.incident_report import IncidentReport
 from src.modules.siem.module import SIEMModule
 from src.schemas.investigation import InvestigationStatus
 from tests.harness.seeder.synthetic_db import (

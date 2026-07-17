@@ -14,18 +14,18 @@ from typing import TYPE_CHECKING
 import logfire
 from pydantic import BaseModel, Field
 
-from src.capabilities.data.base_data_agent import BaseDataAgent
-from src.capabilities.data.query_tool import make_query_tool
-from src.capabilities.identity.user_profile import UserProfile
+from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
+from src.capabilities.subagents.data.query_tool import make_query_tool
+from src.capabilities.tools.identity.user_profile import UserProfile
 from src.core.agents.base_agent import BaseAgent
-from src.modules.siem.alert import Alert
-from src.modules.siem.incident_report import IncidentReport, Severity, Verdict
+from src.modules.siem.schemas.alert import Alert
+from src.modules.siem.schemas.incident_report import IncidentReport, Severity, Verdict
 from src.schemas.guidance import TRUST_SEAM, format_guidance
 from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
 
 if TYPE_CHECKING:
-    from src.capabilities.identity.assessment import IdentityCapability
+    from src.capabilities.tools.identity.assessment import IdentityTool
 
 
 _SIEM_METHOD = """You are Benny, an autonomous SOC analyst investigating a security alert.
@@ -47,23 +47,13 @@ class AnalystModel(BaseModel):
     confidence: float = Field(description="Confidence score between 0.0 and 1.0")
     summary: str = Field(description="Concise investigation summary")
     affected_entities: list[str] = Field(description="Users, hosts, and IPs involved")
-    timeline: list[str] = Field(
-        description="Ordered sequence of events found, from earliest to latest"
-    )
-    investigation_steps: list[str] = Field(
-        description="What you checked during the investigation, in order"
-    )
-    scope: str = Field(
-        description="Blast radius — what systems or data could be affected"
-    )
+    timeline: list[str] = Field(description="Ordered sequence of events found, from earliest to latest")
+    investigation_steps: list[str] = Field(description="What you checked during the investigation, in order")
+    scope: str = Field(description="Blast radius — what systems or data could be affected")
     findings: list[str] = Field(description="Key findings and evidence")
     recommended_actions: list[str] = Field(description="Recommended SOC actions")
-    detection_rule_improvements: list[str] = Field(
-        description="Suggested detection rule improvements"
-    )
-    investigation_truncated: bool = Field(
-        default=False, description="True if the tool call limit was reached"
-    )
+    detection_rule_improvements: list[str] = Field(description="Suggested detection rule improvements")
+    investigation_truncated: bool = Field(default=False, description="True if the tool call limit was reached")
 
 
 class AnalystAgent(BaseAgent[AnalystModel]):
@@ -83,7 +73,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         self,
         model: str,
         data_agents: list[BaseDataAgent],
-        identity: IdentityCapability | None = None,
+        identity: IdentityTool | None = None,
     ) -> None:
         names = [a.name for a in data_agents]
         if len(names) != len(set(names)):

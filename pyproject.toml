@@ -28,5 +28,9 @@ dev = [
     "ruff>=0.15.6",
 ]
 
+[tool.ruff]
+# Project line-length policy: lines may run up to 120 chars.
+line-length = 120
+
 [tool.pytest.ini_options]
 markers = ["e2e: end-to-end tests requiring a real LLM API key (MODEL_API_KEY)"]

@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from src.api.app import create_app  # noqa: E402
-from src.modules.siem.incident_report import IncidentReport, Severity, Verdict  # noqa: E402
+from src.adapters.api.app import create_app  # noqa: E402
+from src.modules.siem.schemas.incident_report import IncidentReport, Severity, Verdict  # noqa: E402
 from src.schemas.investigation import Investigation, InvestigationStatus  # noqa: E402
 from tests.harness.seeder.synthetic_db import SyntheticDataset  # noqa: E402
 
@@ -91,16 +91,12 @@ def client(tmp_path):
     mock_data_agent.name = "security_logs"
     mock_data_agent.routing_description = "Mock data source for tests."
     mock_data_agent.initialize = AsyncMock()
-    with patch("src.api.app.SQLiteDataAgent", return_value=mock_data_agent):
+    with patch("src.adapters.api.app.SQLiteDataAgent", return_value=mock_data_agent):
         with (
             patch("src.modules.siem.module.AnalystAgent") as mock_cls,
             patch("src.modules.vuln_mgmt.module.VulnAnalystAgent") as vuln_cls,
         ):
-            mock_cls.return_value.investigate.side_effect = lambda alert: (
-                _stub_investigation(alert.id)
-            )
-            vuln_cls.return_value.investigate.side_effect = lambda finding: (
-                _stub_investigation(finding.id)
-            )
+            mock_cls.return_value.investigate.side_effect = lambda alert: _stub_investigation(alert.id)
+            vuln_cls.return_value.investigate.side_effect = lambda finding: _stub_investigation(finding.id)
             with TestClient(app) as client:
                 yield client

@@ -13,12 +13,12 @@ from datetime import datetime, timezone
 import logfire
 from pydantic import BaseModel, Field
 
-from src.capabilities.data.base_data_agent import BaseDataAgent
-from src.capabilities.data.query_tool import make_query_tool
+from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
+from src.capabilities.subagents.data.query_tool import make_query_tool
 from src.core.agents.base_agent import BaseAgent
-from src.modules.vuln_mgmt.finding import Finding
-from src.modules.vuln_mgmt.intel import VulnIntelCapability
-from src.modules.vuln_mgmt.report import VulnTriageReport
+from src.modules.vuln_mgmt.schemas.finding import Finding
+from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
+from src.modules.vuln_mgmt.schemas.report import VulnTriageReport
 from src.schemas.guidance import TRUST_SEAM, format_guidance
 from src.schemas.investigation import Investigation, InvestigationStatus
 from src.schemas.outcome import Outcome
@@ -38,24 +38,16 @@ Be conservative — if exposure is unclear, prefer a higher priority and flag fo
 
 
 class VulnAnalystModel(BaseModel):
-    exploitable: bool = Field(
-        description="Whether the vulnerability is exploitable in this environment"
-    )
+    exploitable: bool = Field(description="Whether the vulnerability is exploitable in this environment")
     priority: str = Field(description="Remediation priority (critical/high/medium/low)")
-    remediation_sla_days: int | None = Field(
-        default=None, description="Recommended remediation window in days"
-    )
+    remediation_sla_days: int | None = Field(default=None, description="Recommended remediation window in days")
     confidence: float = Field(description="Confidence score between 0.0 and 1.0")
     summary: str = Field(description="Concise triage summary")
     affected_assets: list[str] = Field(description="Assets affected")
     evidence: list[str] = Field(description="Key evidence supporting the assessment")
-    recommended_actions: list[str] = Field(
-        description="Recommended remediation actions"
-    )
+    recommended_actions: list[str] = Field(description="Recommended remediation actions")
     investigation_steps: list[str] = Field(description="What you checked, in order")
-    investigation_truncated: bool = Field(
-        default=False, description="True if the tool call limit was reached"
-    )
+    investigation_truncated: bool = Field(default=False, description="True if the tool call limit was reached")
 
 
 class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
@@ -75,7 +67,7 @@ class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
         self,
         model: str,
         data_agents: list[BaseDataAgent],
-        intel: VulnIntelCapability,
+        intel: VulnIntelTool,
     ) -> None:
         names = [a.name for a in data_agents]
         if len(names) != len(set(names)):

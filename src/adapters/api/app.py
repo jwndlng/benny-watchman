@@ -1,0 +1,182 @@
+"""FastAPI application factory."""
+
+import json
+import logging
+import os
+import pathlib
+import secrets
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
+import anyio
+import logfire
+from fastapi import FastAPI
+
+from src.adapters.api.routes.findings import router as findings_router
+from src.adapters.api.routes.hunt import router as hunt_router
+from src.adapters.api.routes.investigate import router as investigate_router
+from src.adapters.api.routes.investigations import router as investigations_router
+from src.adapters.api.routes.modules import router as modules_router
+from src.adapters.api.routes.reports import router as reports_router
+from src.adapters.api.routes.triage import router as triage_router
+from src.capabilities.subagents.data.base_data_agent import BaseDataAgent
+from src.capabilities.subagents.data.elastic_data_agent import ElasticDataAgent
+from src.capabilities.subagents.data.sqlite_data_agent import SQLiteDataAgent
+from src.capabilities.tools.identity.assessment import IdentityTool
+from src.capabilities.tools.identity.okta import OktaClient
+from src.config import Settings, config
+from src.core.orchestration.capabilities import Capabilities
+from src.core.orchestration.module_registry import ModuleRegistry
+from src.core.orchestration.orchestrator import OrchestratorAgent
+from src.adapters.mcp.server.app import MCPServer
+from src.adapters.persistence import ModelFactory
+from src.modules.siem.module import SIEMModule
+from src.adapters.platforms.base import TriagePlatform
+from src.adapters.platforms.elastic import ElasticSecurityPlatform
+from src.adapters.platforms.memory import InMemoryTriagePlatform
+from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
+from src.modules.vuln_mgmt.module import VulnModule
+
+logger = logging.getLogger(__name__)
+
+
+def _load_seed_alerts() -> list[dict]:
+    """Dev only: seed the in-memory platform from a JSON file of raw alerts.
+
+    Set TRIAGE_SEED_ALERTS to a path to a JSON array of alert dicts. Lets you
+    exercise the triage loop / `review_newest_alert` locally without Elastic.
+    """
+    path = os.environ.get("TRIAGE_SEED_ALERTS")
+    if not path:
+        return []
+    return json.loads(pathlib.Path(path).read_text())
+
+
+def _select_triage_platform(cfg: Settings) -> TriagePlatform:
+    """Elastic when Kibana is configured, else the in-memory reference platform."""
+    if cfg.kibana is not None:
+        return ElasticSecurityPlatform(
+            kibana_url=cfg.kibana.url,
+            api_key=cfg.kibana.api_key,
+            case_owner=cfg.kibana.case_owner,
+        )
+    return InMemoryTriagePlatform(items=_load_seed_alerts())
+
+
+def create_app(cfg: Settings = config) -> FastAPI:
+    """Create and configure the FastAPI application."""
+
+    mcp_token = cfg.mcp_bearer_token or secrets.token_urlsafe(32)
+    if not cfg.mcp_bearer_token:
+        logger.warning("MCP_BEARER_TOKEN not set — generated ephemeral token: %s", mcp_token)
+
+    mcp_server = MCPServer()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        """Initialise shared state on startup."""
+        async with mcp_server.session():
+            # Log data sources are authoritative: a source runs iff its config
+            # section is present. No always-on default source.
+            log_agents: list[BaseDataAgent] = []
+            elastic_agent: ElasticDataAgent | None = None
+
+            if cfg.data.sqlite is not None:
+                sqlite_agent = SQLiteDataAgent(
+                    name=cfg.data.sqlite.name,
+                    model=cfg.agent.model,
+                    db_path=cfg.data.sqlite.db_path,
+                )
+                await sqlite_agent.initialize()
+                log_agents.append(sqlite_agent)
+
+            if cfg.data.elastic is not None:
+                elastic_agent = ElasticDataAgent(
+                    name=cfg.data.elastic.name,
+                    model=cfg.agent.model,
+                    host=cfg.data.elastic.host,
+                    api_key=cfg.data.elastic.api_key,
+                    index_pattern=cfg.data.elastic.index_pattern,
+                )
+                await elastic_agent.initialize()
+                log_agents.append(elastic_agent)
+
+            okta_client = (
+                OktaClient(
+                    org_url=cfg.okta.domain,
+                    client_id=cfg.okta.client_id,
+                    private_key_b64=cfg.okta.private_key_b64,
+                )
+                if cfg.okta is not None
+                else None
+            )
+
+            asset_agent = SQLiteDataAgent(
+                name=cfg.vuln.name,
+                model=cfg.agent.model,
+                db_path=cfg.vuln.db_path,
+            )
+            await asset_agent.initialize()
+
+            all_agents = [*log_agents, asset_agent]
+
+            persistence = ModelFactory.investigations(db_path=cfg.persistence.db_path)
+
+            capabilities = Capabilities(
+                data={agent.name: agent for agent in all_agents},
+                identity=IdentityTool(okta_client),
+            )
+
+            module_registry = ModuleRegistry()
+            module_registry.register(
+                SIEMModule(
+                    model=cfg.agent.model,
+                    data_sources=[a.name for a in log_agents],
+                )
+            )
+            module_registry.register(
+                VulnModule(
+                    model=cfg.agent.model,
+                    intel=VulnIntelTool(),
+                    data_sources=[cfg.vuln.name],
+                )
+            )
+
+            app.state.orchestrator = OrchestratorAgent(module_registry, persistence, capabilities)
+            app.state.persistence = persistence
+            app.state.module_registry = module_registry
+            app.state.triage_platform = _select_triage_platform(cfg)
+            mcp_server.register(
+                all_agents,
+                module_registry,
+                app.state.orchestrator,
+                app.state.triage_platform,
+            )
+
+            # Early feedback: probe the triage platform at startup (non-blocking).
+            health = await anyio.to_thread.run_sync(app.state.triage_platform.health_check)
+            logger.info(
+                "triage platform (%s): ok=%s open_alerts=%s checks=%s",
+                health["platform"],
+                health["ok"],
+                health.get("open_alerts"),
+                health["checks"],
+            )
+            if not health["ok"]:
+                logfire.warning("triage platform health check failed", checks=health["checks"])
+            yield
+
+            if elastic_agent is not None:
+                await elastic_agent.close()
+
+    app = FastAPI(title="Benny Watchman", lifespan=lifespan)
+    app.include_router(investigate_router)
+    app.include_router(findings_router)
+    app.include_router(investigations_router)
+    app.include_router(reports_router)
+    app.include_router(modules_router)
+    app.include_router(triage_router)
+    app.include_router(hunt_router)
+    mcp_server.mount(app, mcp_token)
+
+    return app

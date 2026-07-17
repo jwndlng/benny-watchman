@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from mcp.server.fastmcp import FastMCP
 
-from src.mcp.server.tools import register_tools
+from src.adapters.mcp.server.tools import register_tools
 
 
 def _mcp() -> FastMCP:

@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import logfire
 
-if TYPE_CHECKING:
-    from src.core.orchestration.capabilities import Capabilities
-    from src.core.orchestration.module_registry import ModuleRegistry
-    from src.models import InvestigationModel
-    from src.schemas.investigation import Investigation
+from src.core.orchestration.capabilities import Capabilities
+from src.core.orchestration.module_registry import ModuleRegistry
+from src.core.ports.persistence import InvestigationStore
+from src.schemas.investigation import Investigation
 
 
 @dataclass
@@ -39,7 +37,7 @@ class OrchestratorAgent:
     def __init__(
         self,
         registry: ModuleRegistry,
-        persistence: InvestigationModel,
+        persistence: InvestigationStore,
         capabilities: Capabilities,
     ) -> None:
         self._registry = registry

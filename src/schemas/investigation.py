@@ -31,28 +31,17 @@ class Investigation(BaseModel):
         default="",
         description="Dedup key '<module>:<module dedup key>' — enforces review-once",
     )
-    module: str = Field(
-        default="", description="Analyst module that produced this investigation"
-    )
+    module: str = Field(default="", description="Analyst module that produced this investigation")
     alert_id: str = Field(description="ID of the input (alert or finding) investigated")
     status: InvestigationStatus = Field(description="Current investigation status")
-    severity: str | None = Field(
-        default=None, description="Assessed severity, set on completion"
-    )
-    verdict: str | None = Field(
-        default=None, description="Investigation verdict, set on completion"
-    )
+    severity: str | None = Field(default=None, description="Assessed severity, set on completion")
+    verdict: str | None = Field(default=None, description="Investigation verdict, set on completion")
     guidance_source: str | None = Field(
-        default=None,
-        description="Provenance of the guidance applied (e.g. 'elastic-rule-note'), or None",
+        default=None, description="Provenance of the guidance applied (e.g. 'elastic-rule-note'), or None"
     )
-    outcome: Outcome | None = Field(
-        default=None, description="Generic cross-domain summary, set on completion"
-    )
+    outcome: Outcome | None = Field(default=None, description="Generic cross-domain summary, set on completion")
     created_at: datetime = Field(description="When the investigation was created")
-    completed_at: datetime | None = Field(
-        default=None, description="When the investigation completed"
-    )
+    completed_at: datetime | None = Field(default=None, description="When the investigation completed")
     report: dict[str, object] | None = Field(
         default=None, description="Serialized domain report payload, set on completion"
     )

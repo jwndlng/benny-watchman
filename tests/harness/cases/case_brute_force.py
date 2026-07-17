@@ -2,8 +2,8 @@
 
 from datetime import datetime, timezone
 
-from src.modules.siem.alert import Alert
-from src.modules.siem.incident_report import Severity, Verdict
+from src.modules.siem.schemas.alert import Alert
+from src.modules.siem.schemas.incident_report import Severity, Verdict
 from tests.harness.cases.base_case import BaseCase
 from tests.harness.seeder.base_dataset import BaseDataset
 from tests.harness.seeder.synthetic_db import BRUTE_FORCE_ATTACKER_IP, SyntheticDataset

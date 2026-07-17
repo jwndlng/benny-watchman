@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.modules.vuln_mgmt.analyst import VulnAnalystAgent
-from src.modules.vuln_mgmt.finding import Finding
+from src.modules.vuln_mgmt.schemas.finding import Finding
 
 if TYPE_CHECKING:
     from src.core.orchestration.capabilities import Capabilities
-    from src.modules.vuln_mgmt.intel import VulnIntelCapability
+    from src.modules.vuln_mgmt.tools.intel import VulnIntelTool
     from src.schemas.investigation import Investigation
 
 
@@ -26,7 +26,7 @@ class VulnModule:
     def __init__(
         self,
         model: str,
-        intel: VulnIntelCapability,
+        intel: VulnIntelTool,
         data_sources: list[str],
     ) -> None:
         self._model = model
@@ -38,7 +38,7 @@ class VulnModule:
         try:
             Finding(**raw)
             return True
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     def dedup_key(self, finding: Finding) -> str:

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.modules.siem.incident_report import IncidentReport, Severity
+from src.modules.siem.schemas.incident_report import IncidentReport, Severity
 
 if TYPE_CHECKING:
     from tests.harness.cases.base_case import BaseCase
@@ -24,10 +24,7 @@ _SEVERITY_RANK: dict[Severity, int] = {
 class Judge:
     def evaluate(self, case: "BaseCase", report: IncidentReport) -> bool | None:
         """Return True/False if assertions are defined, None if the case has no expectations."""
-        if (
-            case.expected_verdict is not None
-            and report.verdict != case.expected_verdict
-        ):
+        if case.expected_verdict is not None and report.verdict != case.expected_verdict:
             return False
         if case.severity_range is not None:
             min_sev, max_sev = case.severity_range

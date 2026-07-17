@@ -36,7 +36,7 @@ Benny is built from two kinds of agents: **vertical analyst modules** (SIEM, lat
 | Unit of work | Compresses parent context? | Needs reasoning? | Build as |
 |---|---|---|---|
 | Single call | no | no | inline tool |
-| N fixed calls, fixed summary | **yes** | no | **composite deterministic tool** (e.g. `IdentityCapability`) |
+| N fixed calls, fixed summary | **yes** | no | **composite deterministic tool** (e.g. `IdentityTool`) |
 | N calls, path/verdict decided by a model | **yes** | yes | **sub-agent (LLM loop)** (e.g. `DataAgent`) |
 | The investigation's own top-level reasoning | n/a | yes | the analyst itself — **never sharded** |
 
@@ -114,25 +114,29 @@ Configuration is TOML-canonical via `pydantic-settings` (`src/config.py`), with 
 
 ## Project Structure
 
-Source is organized along a horizontal/vertical seam (see `openspec/changes/modular-soc-architecture`):
-- `src/core/` — domain-agnostic framework and orchestration (`core/agents/base_agent.py`, `core/orchestration/`)
-- `src/capabilities/` — cross-cutting horizontals shared by all domains: `data/` (DataAgents), `identity/` (Okta), `enrichment/`
-- `src/modules/` — per-domain verticals; `modules/siem/` (SIEM analyst, `Alert`/`IncidentReport`) and `modules/vuln_mgmt/` (VM analyst, `Finding`/`VulnTriageReport`, vuln-intel tool). Each module owns a stable analyst *method* (persona) in code, implements the `AnalystModule` contract, and selects its data source(s) from `Capabilities` by name. Per-item guidance rides on the input's `guidance` field.
-- `src/platforms/` — the **TriagePlatform** primitive: the operational I/O boundary Benny works within (intake + tracking + write-back). `base.py` (the `TriagePlatform` Protocol + `TriageStatus`), `loop.py` (`run_once` triage-loop), `memory.py` (in-memory, dev), and `elastic.py` (`ElasticSecurityPlatform` — talks to the **Kibana** Security API: signals search + status + Cases; note the DataAgent↔Elasticsearch-API vs TriagePlatform↔Kibana-API split). Depends inward on `core`/`schemas` only — `core/` never imports `platforms/`.
-- `src/mcp/server/` — Benny AS an MCP server (FastMCP assembly, tools, auth); `src/mcp/clients/` — Benny AS a client of external MCP servers (e.g. ClickHouse)
-- `src/engines/`, `src/config.py`, `src/models.py`, `src/utils/` — shared infrastructure
+Source is organized along two axes (see `openspec/changes/layered-package-structure`): a **horizontal/vertical seam** (where code is shared) and a **boundary-kind split** (sub-agent vs tool). Everything that touches the outside world lives in an `adapters/` ring; dependencies point inward.
+- `src/core/` — domain-agnostic framework and orchestration (`core/agents/base_agent.py` + the generic `core/agents/as_tool.py` sub-agent→tool bridge, `core/orchestration/`, and `core/ports/` for the interfaces core owns — `query_engine` and `persistence`). Imports only `schemas/`; never `modules/` or `adapters/` (the orchestrator type-hints `core.ports.persistence.InvestigationStore`, which `adapters.persistence` satisfies structurally).
+- `src/capabilities/` — cross-cutting **horizontals** shared by all domains, split by boundary kind: `subagents/` (LLM loops — `data/` DataAgents) and `tools/` (deterministic composites — `identity/` Okta). Horizontal-only: a tool used by a single module belongs to that module, not here.
+- `src/modules/` — **self-contained** per-domain verticals; each owns its analyst, `module.py` (`AnalystModule` contract), domain models under `schemas/`, and module-local tools under `tools/`. `modules/siem/` (SIEM analyst, `schemas/{alert,incident_report}`) and `modules/vuln_mgmt/` (VM analyst, `schemas/{finding,report}`, `tools/intel`). Each owns a stable analyst *method* (persona) in code and selects its data source(s) from `Capabilities` by name; per-item guidance rides on the input's `guidance` field.
+- `src/adapters/` — the outer I/O ring; touches the outside world, depends inward on `core`/`capabilities`/`modules`:
+  - `adapters/api/` — FastAPI app (composition root `api/app.py`) + routes
+  - `adapters/mcp/server/` (Benny AS an MCP server: FastMCP assembly, tools, auth) and `adapters/mcp/clients/` (Benny AS a client of external MCP servers, e.g. ClickHouse)
+  - `adapters/platforms/` — the **TriagePlatform** primitive: `base.py` (Protocol + `TriageStatus`), `loop.py` (`run_once` triage-loop), `memory.py` (dev), `elastic.py` (`ElasticSecurityPlatform` over the **Kibana** Security API: signals search + status + Cases; note the DataAgent↔Elasticsearch-API vs TriagePlatform↔Kibana-API split)
+  - `adapters/engines/` — query engine abstraction (SQLite now, ClickHouse next)
+  - `adapters/persistence.py` — investigation persistence backed by an engine
+- `src/schemas/`, `src/config.py`, `src/utils/` — shared leaf infrastructure (no upward deps)
 
 ### Orchestration & the module contract
 - A triage domain is an `AnalystModule` (`src/core/orchestration/module.py`): a Protocol with `name`, `input_type`, `accepts(raw)`, and `investigate(inp, caps)`. Adding a domain means adding a module — not modifying core.
 - `OrchestratorAgent` (`src/core/orchestration/orchestrator.py`) exposes `handle(raw, hint=None)`: an explicit `hint` dispatches directly (no LLM); otherwise it resolves a module via `accepts()`. Routes to one module today; the return type leaves room for cross-module synthesis.
 - `ModuleRegistry` holds modules (domain-level); each module owns its analyst method in code and applies per-item `guidance` as a lead — there is no runbook registry.
-- `Capabilities` (`src/core/orchestration/capabilities.py`) is a typed container of shared instances (data agents, identity), built once at the composition root (`api/app.py`) and injected into `investigate()`. `SIEMModule` (`src/modules/siem/module.py`) is the first module.
-- The **triage-loop** (`src/platforms/loop.py`, `run_once`) closes the loop: fetch open items from a `TriagePlatform` → `handle()` → write back (case-always; auto-close benign, escalate real). It lives in `platforms/`, driven by the generic `outcome`, so `core/` stays unaware of it. Trigger: `POST /triage/run`.
+- `Capabilities` (`src/core/orchestration/capabilities.py`) is a typed container of shared instances (data agents, identity), built once at the composition root (`adapters/api/app.py`) and injected into `investigate()`. `SIEMModule` (`src/modules/siem/module.py`) is the first module.
+- The **triage-loop** (`src/adapters/platforms/loop.py`, `run_once`) closes the loop: fetch open items from a `TriagePlatform` → `handle()` → write back (case-always; auto-close benign, escalate real). It lives in `adapters/platforms/`, driven by the generic `outcome`, so `core/` stays unaware of it. Trigger: `POST /triage/run`.
 
 ## Key Files
 - `src/schemas/guidance.py` — `InvestigationGuidance` type + trust-seam preamble/formatting
-- `src/engines/` — Query engine abstractions (SQLite now, ClickHouse next)
+- `src/adapters/engines/` — Query engine abstractions (SQLite now, ClickHouse next)
 - `src/core/agents/base_agent.py` — BaseAgent framework
-- `src/modules/siem/analyst.py` — SIEM AnalystAgent (owns the SIEM method); `src/capabilities/data/` — DataAgents
-- `src/models.py` — Persistence models backed by Engine
-- `src/platforms/elastic.py` — populates `Alert.guidance` from the detection rule's investigation note
+- `src/modules/siem/analyst.py` — SIEM AnalystAgent (owns the SIEM method); `src/capabilities/subagents/data/` — DataAgents
+- `src/adapters/persistence.py` — Persistence models backed by Engine
+- `src/adapters/platforms/elastic.py` — populates `Alert.guidance` from the detection rule's investigation note

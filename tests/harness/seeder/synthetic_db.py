@@ -85,9 +85,7 @@ def _drop_tables(conn: sqlite3.Connection) -> None:
 # ---------------------------------------------------------------------------
 # Row generators
 # ---------------------------------------------------------------------------
-def _generate_auth_logs(
-    rng: random.Random, rows: int, base_time: datetime
-) -> list[tuple]:
+def _generate_auth_logs(rng: random.Random, rows: int, base_time: datetime) -> list[tuple]:
     records = []
 
     # Background traffic — 80% of rows
@@ -137,9 +135,7 @@ def _generate_auth_logs(
     return [(_iso(ts),) + tuple(rest) for ts, *rest in records]
 
 
-def _generate_network_flows(
-    rng: random.Random, rows: int, base_time: datetime
-) -> list[tuple]:
+def _generate_network_flows(rng: random.Random, rows: int, base_time: datetime) -> list[tuple]:
     records = []
     for _ in range(rows):
         ts = base_time + timedelta(seconds=rng.randint(0, 86400))
@@ -175,17 +171,13 @@ def _generate_network_flows(
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-def seed_database(
-    db_path: str, rows: int = 500, seed: int = 42, reset: bool = False
-) -> None:
+def seed_database(db_path: str, rows: int = 500, seed: int = 42, reset: bool = False) -> None:
     """Create and populate the dataset database.
 
     Safe to call from pytest fixtures — no side effects beyond writing to db_path.
     """
     rng = random.Random(seed)
-    base_time = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    base_time = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
     conn = sqlite3.connect(db_path)
     try:
@@ -208,9 +200,7 @@ def seed_database(
         )
 
         conn.commit()
-        print(
-            f"Seeded {len(auth_rows)} auth_logs and {len(flow_rows)} network_flows into {db_path}"
-        )
+        print(f"Seeded {len(auth_rows)} auth_logs and {len(flow_rows)} network_flows into {db_path}")
     finally:
         conn.close()
 
@@ -230,21 +220,11 @@ class SyntheticDataset(BaseDataset):
 # CLI
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Seed SQLite DB with synthetic security logs"
-    )
-    parser.add_argument(
-        "--db-path", default="data.db", help="Path to SQLite database file"
-    )
-    parser.add_argument(
-        "--rows", type=int, default=500, help="Approximate rows per table"
-    )
-    parser.add_argument(
-        "--seed", type=int, default=42, help="Random seed for reproducibility"
-    )
-    parser.add_argument(
-        "--reset", action="store_true", help="Drop and recreate tables first"
-    )
+    parser = argparse.ArgumentParser(description="Seed SQLite DB with synthetic security logs")
+    parser.add_argument("--db-path", default="data.db", help="Path to SQLite database file")
+    parser.add_argument("--rows", type=int, default=500, help="Approximate rows per table")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
+    parser.add_argument("--reset", action="store_true", help="Drop and recreate tables first")
     args = parser.parse_args()
 
     seed_database(args.db_path, rows=args.rows, seed=args.seed, reset=args.reset)

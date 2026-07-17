@@ -58,9 +58,7 @@ class AssetDataset:
         conn = sqlite3.connect(db_path)
         try:
             if self._reset:
-                conn.executescript(
-                    "DROP TABLE IF EXISTS assets; DROP TABLE IF EXISTS vulnerabilities;"
-                )
+                conn.executescript("DROP TABLE IF EXISTS assets; DROP TABLE IF EXISTS vulnerabilities;")
             conn.executescript(_SCHEMA)
             conn.executemany("INSERT INTO assets VALUES (?,?,?,?,?,?)", _ASSETS)
             conn.executemany("INSERT INTO vulnerabilities VALUES (?,?,?,?,?,?)", _VULNS)
