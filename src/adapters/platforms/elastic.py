@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import logfire
 
-from src.adapters.platforms.base import TriageStatus
+from src.adapters.platforms.base import CaseStatus, CloseReason, TriageStatus
 
 if TYPE_CHECKING:
     from src.schemas.investigation import Investigation
@@ -27,10 +27,20 @@ _CASES = "/api/cases"
 # TriageStatus → Elastic workflow status
 _STATUS_MAP = {
     TriageStatus.CLOSED: "closed",
-    TriageStatus.ESCALATED: "acknowledged",
+    TriageStatus.ACKNOWLEDGED: "acknowledged",
     TriageStatus.OPEN: "open",
 }
 _CASE_SEVERITIES = {"low", "medium", "high", "critical"}
+
+# Human-readable labels for the close reason recorded on the case (the signals
+# status API has no portable close-reason field — see the change's design spike).
+_CLOSE_REASON_LABELS = {
+    CloseReason.DUPLICATE: "Duplicate",
+    CloseReason.FALSE_POSITIVE: "False positive",
+    CloseReason.BENIGN_POSITIVE: "Benign positive",
+    CloseReason.TRUE_POSITIVE: "True positive",
+    CloseReason.OTHER: "Other",
+}
 
 
 def _dig(src: dict, dotted: str) -> Any:
@@ -81,6 +91,7 @@ class ElasticSecurityPlatform:
     # --- intake / tracking ---
 
     def fetch_open(self, limit: int = 50) -> list[dict]:
+        """Return open detection alerts, most recent first, capped at `limit`."""
         body = {
             "query": {"bool": {"filter": [{"term": {"kibana.alert.workflow_status": "open"}}]}},
             "sort": [{"@timestamp": "desc"}],
@@ -92,22 +103,47 @@ class ElasticSecurityPlatform:
         return [self._to_alert(hit) for hit in hits]
 
     def get(self, item_id: str) -> dict | None:
+        """Return a single alert document by id, or None."""
         body = {"query": {"ids": {"values": [item_id]}}, "size": 1}
         resp = self._client.post(_SIGNALS_SEARCH, json=body)
         resp.raise_for_status()
         hits = resp.json().get("hits", {}).get("hits", [])
         return self._to_alert(hits[0]) if hits else None
 
-    def set_status(self, item_id: str, status: TriageStatus) -> None:
+    def acknowledge(self, item_id: str) -> None:
+        """Claim the alert: set its Elastic workflow status to `acknowledged`."""
+        self.set_status(item_id, TriageStatus.ACKNOWLEDGED)
+
+    def set_status(self, item_id: str, status: TriageStatus, reason: CloseReason | None = None) -> None:
+        """Drive the alert's Elastic workflow status (closed/acknowledged/open).
+
+        On a `CLOSED` status with a reason, the human-readable reason is recorded
+        on the alert's case when one exists — the signals status API has no portable
+        close-reason field (see the change's design spike). A dedup close has no
+        case, so its reason lives only in the triage log.
+        """
         resp = self._client.post(
             _SIGNALS_STATUS,
             json={"signal_ids": [item_id], "status": _STATUS_MAP[status]},
         )
         resp.raise_for_status()
+        if status == TriageStatus.CLOSED and reason not in (None, CloseReason.NONE):
+            self._record_close_reason(item_id, reason)
+
+    def _record_close_reason(self, item_id: str, reason: CloseReason) -> None:
+        """Post the close reason as a case comment; no-op when the item has no case."""
+        if item_id not in self._case:
+            logfire.info(
+                "elastic: no case for close reason, recording in log only", item_id=item_id, reason=reason.value
+            )
+            return
+        label = _CLOSE_REASON_LABELS.get(reason, reason.value)
+        self.comment(item_id, f"Benny closed this alert — reason: {label}.")
 
     # --- write-back (cases) ---
 
     def create_case(self, item_id: str, investigation: Investigation) -> str:
+        """Open a Kibana case for the alert, attach it, and return the case id."""
         title = f"[Benny] {item_id}"
         summary = (investigation.report or {}).get("summary", "")
         resp = self._client.post(
@@ -134,6 +170,7 @@ class ElasticSecurityPlatform:
         return case_id
 
     def comment(self, item_id: str, text: str) -> None:
+        """Add a comment to the alert's case, refreshing the cached version."""
         case_id, version = self._require_case(item_id)
         resp = self._client.post(
             f"{_CASES}/{case_id}/comments",
@@ -147,6 +184,7 @@ class ElasticSecurityPlatform:
         self._case[item_id] = (case_id, new_version or version)
 
     def set_severity(self, item_id: str, severity: str) -> None:
+        """Set the alert's case severity (no-op if already at target)."""
         case_id, version = self._require_case(item_id)
         resp = self._client.patch(
             _CASES,
@@ -163,6 +201,25 @@ class ElasticSecurityPlatform:
         # 406 = Kibana rejects a no-op update (severity already at target) — benign.
         if resp.status_code == 406:
             logfire.info("elastic: case severity already at target, skipping", item_id=item_id)
+            return
+        resp.raise_for_status()
+        updated = resp.json()
+        if isinstance(updated, list) and updated:
+            self._case[item_id] = (case_id, updated[0].get("version", version))
+
+    def set_case_status(self, item_id: str, status: CaseStatus) -> None:
+        """Move the alert's Kibana case to a new status; no-op if it has no case."""
+        if item_id not in self._case:
+            logfire.info("elastic: no case to move, skipping", item_id=item_id, status=status.value)
+            return
+        case_id, version = self._case[item_id]
+        resp = self._client.patch(
+            _CASES,
+            json={"cases": [{"id": case_id, "version": version, "status": status.value}]},
+        )
+        # 406 = Kibana rejects a no-op update (already at that status) — benign.
+        if resp.status_code == 406:
+            logfire.info("elastic: case already at status, skipping", item_id=item_id, status=status.value)
             return
         resp.raise_for_status()
         updated = resp.json()
@@ -227,6 +284,13 @@ class ElasticSecurityPlatform:
             resp.raise_for_status()
         except httpx.HTTPError as exc:
             logfire.warn("elastic: alert attach failed", item_id=item_id, error=str(exc))
+            return
+        # Attaching an alert bumps the case version — refresh it so the next PATCH
+        # (e.g. set_case_status) doesn't 409 on a stale version.
+        updated = resp.json()
+        new_version = updated.get("version") if isinstance(updated, dict) else None
+        if new_version:
+            self._case[item_id] = (case_id, new_version)
 
     def _to_alert(self, hit: dict) -> dict:
         src = hit.get("_source", {})

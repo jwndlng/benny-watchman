@@ -6,6 +6,8 @@ import json
 import re
 
 import logfire
+from elasticsearch import BadRequestError
+from pydantic_ai import ModelRetry
 
 from src.capabilities.subagents.data.base_data_agent import BaseDataAgent, DataModel
 from src.core.ports.query_engine import ColumnInfo, TableInfo
@@ -144,7 +146,17 @@ class ElasticDataAgent(BaseDataAgent):
         Always name the fields you need — never retrieve all fields.
         LIMIT is required. Single query only (no semicolons).
         """
-        return await self._engine.run_query(esql)
+        try:
+            return await self._engine.run_query(esql)
+        except BadRequestError as exc:
+            # ES|QL parse/verification errors (e.g. unknown column) are recoverable:
+            # hand the error back to the model so it verifies fields and retries,
+            # rather than aborting the whole investigation.
+            raise ModelRetry(
+                f"ES|QL query failed: {exc}. Only *mapped* fields are queryable — a field "
+                f"seen in the alert may not exist in this index. Call get_schema to confirm "
+                f"the exact field names for the index you are querying, then retry."
+            ) from exc
 
     async def close(self) -> None:
         """Close the underlying Elasticsearch connection pool."""
