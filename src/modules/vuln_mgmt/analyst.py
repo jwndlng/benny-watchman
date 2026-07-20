@@ -91,6 +91,7 @@ class VulnAnalystAgent(BaseAgent[VulnAnalystModel]):
         return await self._intel.enrich(cve)
 
     def investigate(self, finding: Finding) -> Investigation:
+        """Run the VM triage loop over the finding and return the Investigation."""
         guidance = finding.guidance
         logfire.info(
             "triage guidance",

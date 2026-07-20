@@ -13,14 +13,17 @@ from src.config import config
 class BaseAgent[TOutput](ABC):
     @property
     @abstractmethod
-    def instructions(self) -> str: ...
+    def instructions(self) -> str:
+        """The agent's persona — pure role description."""
 
     @property
     def constraints(self) -> list[str]:
+        """Agent-specific limits appended to the system prompt; empty by default."""
         return []
 
     @property
     def system_prompt(self) -> str:
+        """The final prompt: instructions plus any constraints."""
         prompt = self.instructions
         if self.constraints:
             items = "\n".join(f"- {c}" for c in self.constraints)
@@ -45,6 +48,7 @@ class BaseAgent[TOutput](ABC):
         )
 
     def run_sync(self, prompt: str, **kwargs) -> AgentRunResult[TOutput]:
+        """Run the agent synchronously, logging token usage."""
         result = self.agent.run_sync(prompt, usage_limits=self._usage_limits, **kwargs)
         u = result.usage()
         logfire.info(
@@ -57,6 +61,7 @@ class BaseAgent[TOutput](ABC):
         return result
 
     async def run(self, prompt: str, **kwargs) -> AgentRunResult[TOutput]:
+        """Run the agent asynchronously, logging token usage."""
         result = await self.agent.run(prompt, usage_limits=self._usage_limits, **kwargs)
         u = result.usage()
         logfire.info(

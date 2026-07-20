@@ -46,6 +46,7 @@ class VulnModule:
         return f"{finding.cve}:{finding.asset}:{finding.cvss}"
 
     def investigate(self, finding: Finding, caps: Capabilities) -> Investigation:
+        """Build the VM analyst from capabilities and triage the finding."""
         data_agents = [caps.data[n] for n in self._data_sources if n in caps.data]
         analyst = VulnAnalystAgent(
             model=self._model,
