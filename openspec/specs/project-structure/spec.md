@@ -4,85 +4,88 @@
 TBD - created by archiving change modular-soc-architecture. Update Purpose after archive.
 ## Requirements
 ### Requirement: Source is organized along a horizontal/vertical seam
-The system SHALL organize `src/` into three top-level areas that make the reuse boundary visible: `core/` for the domain-agnostic framework and orchestration, `capabilities/` for cross-cutting horizontal agents and tools shared by all domains, and `modules/` for per-domain verticals. This is a behavior-preserving relocation of existing code — no new abstractions are introduced in this slice.
+The system SHALL organize `src/` so that **two** axes are visible: *where code is shared* (horizontal vs vertical) and *what kind of unit it is* (LLM sub-agent vs deterministic tool). It SHALL use `core/` for the domain-agnostic framework and orchestration; `capabilities/` for cross-cutting **horizontal** competences shared by all domains, split by boundary kind into `capabilities/subagents/` (LLM loops) and `capabilities/tools/` (deterministic composites); and `modules/` for per-domain **verticals**, each a self-contained package that owns its domain models under `<module>/schemas/` and any module-local tools under `<module>/tools/`. This remains a behavior-preserving relocation — no new abstractions are introduced.
 
 #### Scenario: Core framework is importable from its new location
 - **WHEN** the application imports the base agent and orchestration components
-- **THEN** `BaseAgent` resolves under `src/core/agents/` and `Orchestrator` and the runbook/module registry resolve under `src/core/orchestration/`
+- **THEN** `BaseAgent` resolves under `src/core/agents/` and the orchestrator and module registry resolve under `src/core/orchestration/`
 
-#### Scenario: Capabilities are grouped under a horizontal package
-- **WHEN** the application imports data, identity, or enrichment components
-- **THEN** the DataAgent classes resolve under `src/capabilities/data/`, the Okta identity code and `UserProfile` under `src/capabilities/identity/`, and the enrichment agent under `src/capabilities/enrichment/`
+#### Scenario: Horizontal capabilities are grouped by boundary kind
+- **WHEN** the application imports the shared data or identity components
+- **THEN** the DataAgent classes resolve under `src/capabilities/subagents/data/`, and the Okta identity code, `IdentityCapability`, and `UserProfile` resolve under `src/capabilities/tools/identity/`
 
-#### Scenario: SIEM-specific code is isolated in its module
-- **WHEN** the application imports SIEM investigation code
-- **THEN** the SIEM analyst, the detection-engineer agent, the `Alert` and `IncidentReport` schemas, and the SIEM runbooks all resolve under `src/modules/siem/`
+#### Scenario: Only genuinely horizontal code lives in capabilities
+- **WHEN** the `src/capabilities/` package is inspected
+- **THEN** it contains only competences consumed by more than one domain (data, identity), and a tool used by a single module does NOT live there
+
+#### Scenario: A module is a self-contained package
+- **WHEN** the application imports a module's investigation code
+- **THEN** the module's analyst and `AnalystModule` implementation resolve directly under `src/modules/<module>/`, its domain models resolve under `src/modules/<module>/schemas/`, its module-local tools resolve under `src/modules/<module>/tools/` (e.g. SIEM's `Alert`/`IncidentReport` under `src/modules/siem/schemas/`; VM's `Finding`/`VulnTriageReport` under `src/modules/vuln_mgmt/schemas/` and its vuln-intel tool under `src/modules/vuln_mgmt/tools/`)
 
 ---
 
 ### Requirement: MCP transport code lives under a dedicated package
-The system SHALL place MCP code under a dedicated `src/mcp/` package split by role: `src/mcp/server/` for code that exposes Benny AS an MCP server, and `src/mcp/clients/` for code that lets Benny act as a client of external MCP servers. No MCP module SHALL remain at the `src/` package root, and the MCP-server assembly SHALL NOT remain inline in `src/api/app.py`.
+The system SHALL place MCP code under `src/adapters/mcp/`, split by role: `adapters/mcp/server/` for code that exposes Benny AS an MCP server, and `adapters/mcp/clients/` for code that lets Benny act as a client of external MCP servers. The MCP-server assembly SHALL NOT be inlined into the API app; the API SHALL mount an already-assembled server.
 
-#### Scenario: Server code is grouped under mcp/server
+#### Scenario: Server code is grouped under adapters/mcp/server
 - **WHEN** the application assembles and mounts the MCP server
-- **THEN** the bearer-auth middleware, the tool registration, and the FastMCP app assembly resolve under `src/mcp/server/`
-
-#### Scenario: No MCP module remains at the package root
-- **WHEN** the `src/` package root is inspected after the refactor
-- **THEN** `src/mcp_auth.py` and `src/mcp_tools.py` no longer exist and their contents live under `src/mcp/server/`
+- **THEN** the bearer-auth middleware, the tool registration, and the FastMCP app assembly resolve under `src/adapters/mcp/server/`
 
 #### Scenario: A client package exists for external MCP consumers
 - **WHEN** the codebase is inspected for MCP-client integration
-- **THEN** an `src/mcp/clients/` package exists as the home for external MCP consumers (e.g. ClickHouse via stdio), even if empty at the end of this slice
+- **THEN** an `src/adapters/mcp/clients/` package exists as the home for external MCP consumers (e.g. ClickHouse via stdio), even if empty
 
 #### Scenario: API mounts the assembled server rather than assembling it
-- **WHEN** `src/api/app.py` wires the MCP endpoint
-- **THEN** it imports an already-assembled server from `src/mcp/server/` and mounts it, and does not itself register tools or construct the FastMCP app inline
+- **WHEN** `src/adapters/api/app.py` wires the MCP endpoint
+- **THEN** it imports an already-assembled server from `src/adapters/mcp/server/` and mounts it, and does not itself register tools or construct the FastMCP app inline
 
 ---
 
-### Requirement: Shared infrastructure remains outside the seam
-The system SHALL keep infrastructure that is neither vertical nor a capability at a shared location: the query engines, application config, persistence models, and utilities. The persistence `Investigation` record SHALL NOT be reshaped or relocated into `core/` in this slice, because its idempotency-envelope redesign is a behavioral change deferred to a later change.
+### Requirement: The outer I/O ring is grouped under an adapters package
+The system SHALL group all code that touches the outside world under `src/adapters/`: inbound transports (`adapters/api/`, `adapters/mcp/`) and outbound adapters (`adapters/platforms/` for triage platforms, `adapters/engines/` for query engines, and `adapters/persistence.py` for investigation storage). No such I/O code SHALL remain a flat peer of `core/` at the `src/` root. These adapters depend inward on `core/`, `capabilities/`, and `modules/`.
 
-#### Scenario: Engines remain shared infrastructure
-- **WHEN** the data capability and the persistence layer both need a query backend
-- **THEN** `QueryEngine` and its implementations resolve under `src/engines/` and are importable by both `src/capabilities/data/` and `src/models.py`
+#### Scenario: Inbound transports live under adapters
+- **WHEN** the application serves the REST API and the MCP endpoint
+- **THEN** the FastAPI app and routes resolve under `src/adapters/api/` and the MCP packages under `src/adapters/mcp/`
 
-#### Scenario: Investigation persistence is unchanged in this slice
-- **WHEN** the refactor completes
-- **THEN** the `Investigation` schema and `InvestigationModel` retain their current shape and behavior, and no dedup key, `outcome`, or generic report payload is introduced
+#### Scenario: Outbound adapters live under adapters
+- **WHEN** the application reads/writes external systems
+- **THEN** the `QueryEngine` and its implementations resolve under `src/adapters/engines/`, the `TriagePlatform` and its implementations under `src/adapters/platforms/`, and investigation persistence under `src/adapters/persistence.py`
+
+#### Scenario: No I/O code remains at the package root
+- **WHEN** the `src/` package root is inspected after the refactor
+- **THEN** `src/api/`, `src/mcp/`, `src/platforms/`, `src/engines/`, and `src/models.py` no longer exist and their contents live under `src/adapters/`
 
 ---
 
 ### Requirement: Dependency direction flows verticals → horizontals → framework
-The restructure SHALL enforce that `src/capabilities/` and the framework code in `src/core/agents/` do not import from `src/modules/`. Module (vertical) code MAY import from `capabilities/` and `core/`; the reverse SHALL NOT hold. The legacy deterministic `Orchestrator` retains a direct dependency on the SIEM analyst until the `AnalystModule` contract inverts it; this single transitional edge SHALL be confined to `src/core/orchestration/` and removed by the module-contract change.
+The layout SHALL enforce an inward dependency direction. `core/` SHALL NOT import from `modules/` or `adapters/` (it depends only on `schemas/` and the ports it owns under `core/ports/`; the orchestrator type-hints the persistence port `core.ports.persistence.InvestigationStore`, which `adapters.persistence` satisfies structurally). `capabilities/` MAY import `core/` and `adapters/engines` but SHALL NOT import `modules/`. `modules/` MAY import `core/` and `capabilities/` but SHALL NOT import another module. `adapters/` (the outer ring, including the composition root `adapters/api/app.py`) MAY import `core/`, `capabilities/`, and `modules/` to wire the application.
 
 #### Scenario: Capabilities do not depend on modules
 - **WHEN** the import graph of `src/capabilities/` is inspected
 - **THEN** no module under `src/capabilities/` imports from `src/modules/`
 
-#### Scenario: Framework agents do not depend on modules
-- **WHEN** the import graph of `src/core/agents/` is inspected
-- **THEN** it does not import from `src/modules/`
+#### Scenario: Core does not depend on modules or adapters
+- **WHEN** the import graph of `src/core/` is inspected
+- **THEN** it imports nothing from `src/modules/` or `src/adapters/`
 
-#### Scenario: The transitional core→module edge is isolated
-- **WHEN** the legacy `Orchestrator` references the SIEM analyst before the module contract exists
-- **THEN** that dependency is confined to `src/core/orchestration/` and is the only import from `core/` into `modules/`
+#### Scenario: Modules do not depend on each other
+- **WHEN** the import graph of any `src/modules/<module>/` is inspected
+- **THEN** it does not import from another sibling module
 
 ---
 
 ### Requirement: The refactor preserves runtime behavior
-The relocation SHALL NOT change runtime behavior, public API contracts, or the MCP tool surface. The existing automated test suite SHALL pass without modification other than import-path updates.
+The relocation SHALL NOT change runtime behavior, public API contracts, or the MCP tool surface. The existing automated test suite SHALL pass with changes limited to import-path updates and the removal of unwired code.
 
 #### Scenario: Existing tests pass after the move
 - **WHEN** the full test suite is run after the refactor
 - **THEN** every test that passed before the refactor passes after it, with changes limited to import paths
 
 #### Scenario: REST endpoints behave identically
-- **WHEN** a client calls `POST /investigate` and the other existing routes after the refactor
+- **WHEN** a client calls the existing routes (`POST /investigate`, `POST /findings`, `POST /triage/run`, …) after the refactor
 - **THEN** the request/response behavior is identical to before the refactor
 
 #### Scenario: MCP tool surface is unchanged
 - **WHEN** an MCP client connects to `/mcp` with a valid bearer token after the refactor
-- **THEN** the same tools (`list_runbooks`, `lookup_data`) are available with the same schemas and behavior as before
-
+- **THEN** the same tools that were available before the refactor are available with identical schemas and behavior

@@ -4,16 +4,16 @@
 TBD - created by archiving change vuln-management-module. Update Purpose after archive.
 ## Requirements
 ### Requirement: Finding is the VM input contract
-The system SHALL define a `Finding` input with at least: `id`, `type` (vuln class, used for runbook matching), `cve`, `asset`, `cvss: float`, `title`, `description`, `source`, `detected_at`, and `raw`. It mirrors the `Alert` shape so it fits the `AnalystModule` pattern.
+The system SHALL define a `Finding` input with at least: `id`, `type` (vuln class, metadata and dedup input), `cve`, `asset`, `cvss: float`, `title`, `description`, `source`, `detected_at`, `raw`, and an optional `guidance: InvestigationGuidance | None`. It mirrors the `Alert` shape so it fits the `AnalystModule` pattern.
 
 #### Scenario: Valid finding parses
 - **WHEN** a payload with all required `Finding` fields is validated
-- **THEN** a `Finding` is produced with `cvss` as a float and `type` available for runbook matching
+- **THEN** a `Finding` is produced with `cvss` as a float and `type` available as metadata
 
 ---
 
 ### Requirement: VulnModule implements the AnalystModule contract
-The system SHALL provide a `VulnModule` with `name = "vuln_mgmt"`, `input_type = Finding`, `accepts(raw)` for finding-shaped payloads, `dedup_key(finding)`, and `investigate(finding, caps)` returning an `Investigation`. Runbook selection SHALL be internal to the module (matched by `finding.type`, `generic` fallback).
+The system SHALL provide a `VulnModule` with `name = "vuln_mgmt"`, `input_type = Finding`, `accepts(raw)` for finding-shaped payloads, `dedup_key(finding)`, and `investigate(finding, caps)` returning an `Investigation`. The analyst uses the module's general triage method; per-finding direction, if any, arrives via `finding.guidance`. There is no runbook selection.
 
 #### Scenario: accepts recognizes findings only
 - **WHEN** `accepts` is called with a valid finding payload
