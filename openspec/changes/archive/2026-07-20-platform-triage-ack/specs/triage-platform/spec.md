@@ -18,6 +18,17 @@ The system SHALL define a `CloseReason` enum (`DUPLICATE`, `FALSE_POSITIVE`, `BE
 - **WHEN** an investigation completes with disposition `inconclusive`
 - **THEN** the item is closed with reason `OTHER`
 
+### Requirement: The case tracks Benny's triage lifecycle
+The case Benny opens SHALL follow his work: opened on creation, moved to `IN_PROGRESS` while triaging, and moved to `CLOSED` once he resolves the finding. An **escalated** case (true-positive) SHALL be left `IN_PROGRESS` so it remains on a human's active queue. `set_case_status` SHALL be a no-op when the item has no case.
+
+#### Scenario: Case is moved to in-progress while triaging
+- **WHEN** the shared write-back creates a case for a fresh investigation
+- **THEN** the case is moved to `IN_PROGRESS` before the item is closed
+
+#### Scenario: set_case_status is a no-op without a case
+- **WHEN** `set_case_status(item_id, CLOSED)` is called for an item that has no case
+- **THEN** no case-status change is attempted and no error is raised
+
 ## MODIFIED Requirements
 
 ### Requirement: TriagePlatform defines the operational I/O contract
@@ -56,17 +67,6 @@ The system SHALL provide `run_once(orchestrator, platform, hint)` that, for each
 #### Scenario: True-positive is escalated with the case left in progress
 - **WHEN** `run_once` processes an open item whose investigation returns a true-positive/actionable disposition
 - **THEN** a case is created with case severity from `outcome.priority`, the item is closed with reason `TRUE_POSITIVE`, and the case is left `IN_PROGRESS` for a human
-
-### Requirement: The case tracks Benny's triage lifecycle
-The case Benny opens SHALL follow his work: opened on creation, moved to `IN_PROGRESS` while triaging, and moved to `CLOSED` once he resolves the finding. An **escalated** case (true-positive) SHALL be left `IN_PROGRESS` so it remains on a human's active queue. `set_case_status` SHALL be a no-op when the item has no case.
-
-#### Scenario: Case is moved to in-progress while triaging
-- **WHEN** the shared write-back creates a case for a fresh investigation
-- **THEN** the case is moved to `IN_PROGRESS` before the item is closed
-
-#### Scenario: set_case_status is a no-op without a case
-- **WHEN** `set_case_status(item_id, CLOSED)` is called for an item that has no case
-- **THEN** no case-status change is attempted and no error is raised
 
 ### Requirement: Write-back is idempotent per work item
 Review-once SHALL be the platform's responsibility, not a Benny-side store: `run_once` SHALL call `handle` with `dedup=False` and write back **every** produced investigation, relying on the platform's `fetch_open` + `acknowledge` to prevent a triaged item from being re-surfaced. The investigations store SHALL be upserted for context/lookups (updating any existing record for the key), never used as a triage gate in the loop. When no module resolves the item (`handle` returns no investigation), the loop SHALL leave the item `ACKNOWLEDGED` for a human and SHALL NOT create a case.
