@@ -100,6 +100,7 @@ class AnalystAgent(BaseAgent[AnalystModel]):
         return None
 
     def investigate(self, alert: Alert) -> Investigation:
+        """Run the SIEM triage loop over the alert and return the Investigation."""
         guidance = alert.guidance
         logfire.info(
             "triage guidance",
