@@ -33,10 +33,14 @@ The system SHALL provide a `ModuleRegistry` that registers modules by `name`, re
 
 ---
 
-### Requirement: Runbook selection remains internal to the module
-The system SHALL keep playbook (runbook) selection inside the module. The SIEM module SHALL match a runbook by alert type using its own registry and SHALL NOT expose runbook selection through the `AnalystModule` contract. `RunbookRegistry` is a within-module concern, distinct from `ModuleRegistry`.
+### Requirement: The analyst method and guidance are internal to the module
+The system SHALL keep the analyst's steering internal to the module and off the `AnalystModule` contract: the general investigation method is the module's own in-repo persona, and per-item direction arrives via the item's `guidance` field. Neither is exposed through `name`/`input_type`/`accepts`/`investigate`.
 
-#### Scenario: SIEM matches a runbook internally
-- **WHEN** the SIEM module investigates an alert whose type matches a loaded runbook
-- **THEN** it selects that runbook as the analyst persona, falling back to the `generic` runbook for an unmatched type, without the orchestrator being involved in runbook selection
+#### Scenario: Steering is not on the contract
+- **WHEN** the `AnalystModule` contract is inspected
+- **THEN** it exposes only `name`, `input_type`, `accepts`, and `investigate` — no runbook or guidance selection surface
+
+#### Scenario: Method drives the persona
+- **WHEN** a module investigates an item
+- **THEN** the analyst persona is the module's general method, and any item `guidance` is applied as a lead within that method
 
