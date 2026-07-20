@@ -1,8 +1,10 @@
 """Unit tests for ElasticDataAgent."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from elasticsearch import BadRequestError
+from pydantic_ai import ModelRetry
 from pydantic_ai.models.test import TestModel
 
 from src.capabilities.subagents.data.elastic_data_agent import (
@@ -126,6 +128,35 @@ async def test_initialize_handles_schema_failure_gracefully(agent):
     await a.initialize()
 
     assert "schema unavailable" in a.routing_description
+
+
+# ---------------------------------------------------------------------------
+# run_query()
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_run_query_passes_through_results(agent):
+    a, engine = agent
+    engine.run_query = AsyncMock(return_value=[{"user": "alice"}])
+    rows = await a.run_query("FROM idx | LIMIT 1")
+    assert rows == [{"user": "alice"}]
+
+
+@pytest.mark.anyio
+async def test_run_query_converts_bad_request_to_model_retry(agent):
+    # A field that isn't mapped in the target index raises verification_exception;
+    # it must become a ModelRetry so the agent self-corrects instead of aborting.
+    a, engine = agent
+    engine.run_query = AsyncMock(
+        side_effect=BadRequestError(
+            "verification_exception: Unknown column [repository.full_name]",
+            meta=Mock(status=400),
+            body={},
+        )
+    )
+    with pytest.raises(ModelRetry, match="get_schema"):
+        await a.run_query("FROM idx | WHERE repository.full_name == 'x' | LIMIT 1")
 
 
 # ---------------------------------------------------------------------------

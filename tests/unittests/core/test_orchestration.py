@@ -128,6 +128,40 @@ def test_orchestrator_dedup_returns_existing_without_rerun():
     persistence.save.assert_not_called()
 
 
+def test_orchestrator_dedup_false_reruns_and_upserts_existing():
+    # dedup=False (triage-loop path): the analyst re-runs even when a record exists,
+    # and the new investigation is upserted onto the existing record's id.
+    registry = ModuleRegistry()
+    module = _StubModule()
+    registry.register(module)
+    persistence = MagicMock()
+    existing = MagicMock()
+    existing.id = "existing-id"
+    persistence.find_by_key.return_value = existing
+    orch = OrchestratorAgent(registry, persistence, Capabilities())
+
+    result = orch.handle({"a": 1}, hint="stub", dedup=False)
+
+    assert result.investigation is module.investigation  # re-ran, not the stored one
+    assert result.created is False  # updated an existing record, not brand-new
+    assert module.investigation.id == "existing-id"  # upsert onto existing row
+    persistence.save.assert_called_once_with(module.investigation)
+
+
+def test_orchestrator_dedup_false_fresh_creates():
+    registry = ModuleRegistry()
+    module = _StubModule()
+    registry.register(module)
+    persistence = _fresh_persistence()
+    orch = OrchestratorAgent(registry, persistence, Capabilities())
+
+    result = orch.handle({"a": 1}, hint="stub", dedup=False)
+
+    assert result.investigation is module.investigation
+    assert result.created is True
+    persistence.save.assert_called_once_with(module.investigation)
+
+
 def test_siem_module_accepts_valid_alert_only():
     module = SIEMModule(model="test:stub", data_sources=[])
     assert module.accepts(VALID_ALERT) is True

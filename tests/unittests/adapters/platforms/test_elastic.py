@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.adapters.platforms.base import TriagePlatform, TriageStatus
+from src.adapters.platforms.base import CaseStatus, CloseReason, TriagePlatform, TriageStatus
 from src.adapters.platforms.elastic import ElasticSecurityPlatform
 from src.schemas.investigation import Investigation, InvestigationStatus
 
@@ -94,6 +94,8 @@ def _investigation() -> Investigation:
 def test_satisfies_the_protocol():
     platform, _ = _platform()
     assert isinstance(platform, TriagePlatform)
+    assert callable(platform.acknowledge)
+    assert callable(platform.set_case_status)
 
 
 def test_fetch_open_filters_and_maps_to_alert():
@@ -185,12 +187,34 @@ def test_rule_note_cached_per_rule():
     assert second["guidance"]["text"] == "Investigate lateral movement."
 
 
-def test_set_status_maps_to_workflow_status():
+def test_acknowledge_and_set_status_map_to_workflow_status():
     platform, fake = _platform()
+    platform.acknowledge("alert-1")
     platform.set_status("alert-1", TriageStatus.CLOSED)
-    platform.set_status("alert-1", TriageStatus.ESCALATED)
     statuses = [c[2]["status"] for c in fake.calls if c[1] == "/api/detection_engine/signals/status"]
-    assert statuses == ["closed", "acknowledged"]
+    assert statuses == ["acknowledged", "closed"]
+
+
+def test_close_with_reason_records_reason_on_case():
+    platform, fake = _platform()
+    platform.fetch_open()  # populates the alert index
+    platform.create_case("alert-1", _investigation())
+    platform.set_status("alert-1", TriageStatus.CLOSED, reason=CloseReason.TRUE_POSITIVE)
+
+    # alert is closed
+    statuses = [c[2]["status"] for c in fake.calls if c[1] == "/api/detection_engine/signals/status"]
+    assert statuses == ["closed"]
+    # the reason is recorded as a user comment on the case
+    user_comments = [c[2]["comment"] for c in fake.calls if c[1].endswith("/comments") and "comment" in c[2]]
+    assert any("True positive" in body for body in user_comments)
+
+
+def test_close_with_reason_without_case_does_not_raise():
+    platform, fake = _platform()
+    # dedup path: no case created — must still close the alert, reason logged only
+    platform.set_status("alert-1", TriageStatus.CLOSED, reason=CloseReason.DUPLICATE)
+    statuses = [c[2]["status"] for c in fake.calls if c[1] == "/api/detection_engine/signals/status"]
+    assert statuses == ["closed"]
 
 
 def test_write_back_creates_case_comments_and_sets_case_severity():
@@ -209,6 +233,34 @@ def test_write_back_creates_case_comments_and_sets_case_severity():
     # severity set on the case, normalized
     patch_body = next(c[2] for c in fake.calls if c[0] == "PATCH")
     assert patch_body["cases"][0]["severity"] == "high"
+
+
+def test_set_case_status_patches_case_status():
+    platform, fake = _platform()
+    platform.fetch_open()
+    platform.create_case("alert-1", _investigation())
+    platform.set_case_status("alert-1", CaseStatus.IN_PROGRESS)
+    platform.set_case_status("alert-1", CaseStatus.CLOSED)
+    statuses = [c[2]["cases"][0]["status"] for c in fake.calls if c[0] == "PATCH" and "status" in c[2]["cases"][0]]
+    assert statuses == ["in-progress", "closed"]
+
+
+def test_set_case_status_without_case_is_noop():
+    platform, fake = _platform()
+    platform.set_case_status("alert-1", CaseStatus.CLOSED)  # no case created
+    assert all(c[0] != "PATCH" for c in fake.calls)
+
+
+def test_set_case_status_uses_version_refreshed_after_attach():
+    # regression: create_case attaches the alert (a comment that bumps the case
+    # version); the following set_case_status PATCH must use the post-attach
+    # version ("v-comment"), not the stale create-time version ("v-create"),
+    # or Kibana 409s on /api/cases.
+    platform, fake = _platform()
+    platform.fetch_open()  # populates the alert index so the alert is attached
+    platform.create_case("alert-1", _investigation())
+    platform.set_case_status("alert-1", CaseStatus.IN_PROGRESS)
+    assert fake.patched_version == "v-comment"
 
 
 def test_set_severity_uses_version_refreshed_after_comment():
